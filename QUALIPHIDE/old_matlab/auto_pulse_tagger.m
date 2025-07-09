@@ -47,12 +47,12 @@ function count_rate = auto_pulse_tagger(fine_iq_name, filenum, std_coeff, f_targ
         pulse_idx2 = zeros(size(pulse_idx));
         CR_pulse_idx = zeros(size(pulse_idx));
         for p = 1:size(pulse_idx,1)
-            if pulse_idx(p)+61 < size(signal,1) % doesn't go off end of array
+            if pulse_idx(p)+61 < size(signal,1) % doesnt go off end of array
                 [m,argmin] = min(signal(pulse_idx(p)+1:pulse_idx(p)+60));
                 [M,argmax1] = max(signal(pulse_idx(p)+1:pulse_idx(p)+100));
                 [~,argmax2] = max(signal(pulse_idx(p)+1:pulse_idx(p)+60));
 
-                if m > thresh && M < 200*std(signal)% whole chunk is above threshold but not a CR
+                if m > thresh && M < CR_coeff*std(signal)% whole chunk is above threshold but not a CR
                     pulse_idx2(p) = pulse_idx(p) + argmax2 - 1; % set to max
                 elseif m > thresh
                     CR_pulse_idx(p) = pulse_idx(p) + argmax1 - 1;
@@ -147,7 +147,7 @@ function count_rate = auto_pulse_tagger(fine_iq_name, filenum, std_coeff, f_targ
     end
     
     if save_data
-        save_path = "C:\Users\chalbert\Desktop\PRIMA_general\20250127_Cooldown\analysis\pulse_tagging\";
+        save_path = "C:\Users\chalbert\Desktop\PRIMA_general\20250517_Cooldown\analysis\pulse_tagging\";
         % info_tag = f_targ+"MHz_"+BB_T+"K_"+num2str(stage_T)+"mK_"+std_coeff+"sigma";
         info_tag = power+"K_"+std_coeff+"sigma_"+f_targ+"Hz";
         save(save_path+"start_times_"+info_tag+".mat", 'start_times')
