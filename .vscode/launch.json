@@ -8,10 +8,23 @@
             "name": "Raw Records",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "debug_raw_records.py",
+            "cwd": "${workspaceFolder}/QUALIPHIDE/debug_straxion",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "python.debugging.pydbgdArgs": ["--timeout", "1.0"]
+            "python.debugging.pydbgdArgs": ["--timeout", "1.0"],
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
+        },
+        {
+            "name": "Records",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "debug_records.py",
+            "cwd": "${workspaceFolder}/QUALIPHIDE/debug_straxion",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python.debugging.pydbgdArgs": ["--timeout", "1.0"],
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         }
     ]
 }
