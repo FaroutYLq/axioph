@@ -1,6 +1,9 @@
 # Mac OS stuff
 *.DS_Store
 
+# strax
+*strax_data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
