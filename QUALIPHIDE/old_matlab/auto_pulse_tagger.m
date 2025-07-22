@@ -34,7 +34,7 @@ function count_rate = auto_pulse_tagger(fine_iq_name, filenum, std_coeff, f_targ
         signal = yconv;
     
         thresh = mean(signal) + std_coeff*std(signal);
-        % second round
+        % second round if the data is noisy, and the baseline is too high. need to lower it in this case, by only using the data that is above the threshold to recalculate the threshold
         if 2*mean(abs(y)) < std(y)
             thresh_mask = signal < thresh;
             thresh = mean(signal) + std_coeff*std(signal(thresh_mask));
