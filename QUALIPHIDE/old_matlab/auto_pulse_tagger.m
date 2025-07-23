@@ -42,17 +42,19 @@ function count_rate = auto_pulse_tagger(fine_iq_name, filenum, std_coeff, f_targ
 
 
         pulse_idx = find(signal<thresh);
+        % minimum spacing between pulses is 20 samples; find the indicies of the first sample of each hit
         pulse_idx =  pulse_idx(diff(pulse_idx)>20); % cut down data size but not enought to miss a pulse
         
-        pulse_idx2 = zeros(size(pulse_idx));
-        CR_pulse_idx = zeros(size(pulse_idx));
+        pulse_idx2 = zeros(size(pulse_idx)); % index of the maximum
+        CR_pulse_idx = zeros(size(pulse_idx)); % index of the CR
         for p = 1:size(pulse_idx,1)
             if pulse_idx(p)+61 < size(signal,1) % doesnt go off end of array
+                % find the index of the minimum and maximum of the pulse
                 [m,argmin] = min(signal(pulse_idx(p)+1:pulse_idx(p)+60));
-                [M,argmax1] = max(signal(pulse_idx(p)+1:pulse_idx(p)+100));
+                [M,argmax1] = max(signal(pulse_idx(p)+1:pulse_idx(p)+100)); % extend the range to find the maximum of the pulse
                 [~,argmax2] = max(signal(pulse_idx(p)+1:pulse_idx(p)+60));
 
-                if m > thresh && M < CR_coeff*std(signal)% whole chunk is above threshold but not a CR
+                if m > thresh && M < CR_coeff*std(signal)% whole hit is above threshold but not a CR
                     pulse_idx2(p) = pulse_idx(p) + argmax2 - 1; % set to max
                 elseif m > thresh
                     CR_pulse_idx(p) = pulse_idx(p) + argmax1 - 1;
@@ -76,7 +78,7 @@ function count_rate = auto_pulse_tagger(fine_iq_name, filenum, std_coeff, f_targ
         pulse_idx3 = zeros(size(pulse_idx));
         pulse_idx3_CR = zeros(size(pulse_idx));
         for p = 1:numel(pulse_idx)
-            [M,argmax] = max(avg_theta( max([pulse_idx(p)-40 1]): min([pulse_idx(p)+40 5e6]) ));
+            [M,argmax] = max(avg_theta( max([pulse_idx(p)-40 1]): min([pulse_idx(p)+40 Ns]) ));
             % CR_coeff = 1;
             % CR_thresh = 1;
             if M >= min(CR_thresh, mean_pulse_amp + CR_coeff*std_pulse_amp)
