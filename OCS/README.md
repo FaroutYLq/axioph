@@ -26,6 +26,30 @@ dispersion is measurable. This makes them useful for:
 pip install -r requirements.txt
 ```
 
+## Plotting Style
+
+All plots use a custom matplotlib style (`ocs.mplstyle`) designed for 
+publication-quality figures. The style features:
+- Serif fonts (DejaVu Serif) with consistent sizing
+- PRL-standard figure dimensions (3.375" × 2.72")
+- Professional tick marks (inward-facing) and grid styling
+- High-resolution output (600 DPI for saved figures)
+- Constrained layout for optimal spacing
+
+The style is automatically applied to all OCS plotting methods. To use 
+it in custom scripts:
+
+```python
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+style_path = Path("OCS") / "ocs.mplstyle"
+with plt.style.context(style_path):
+    # Your plotting code here
+    fig, ax = plt.subplots()
+    # ...
+```
+
 ## Quick Start
 
 ```python

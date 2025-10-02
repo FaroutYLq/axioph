@@ -13,6 +13,7 @@ dispersion is measurable.
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from scipy.constants import h, k, e, eV
 from scipy.linalg import eigh
 import yaml
@@ -39,6 +40,7 @@ class OCS:
     # Materials database cache
     _materials_db = None
     _materials_path = Path(__file__).parent / "materials.yaml"
+    _style_path = Path(__file__).parent / "ocs.mplstyle"
     
     @classmethod
     def load_materials_database(cls):
@@ -419,29 +421,28 @@ class OCS:
         print(f"E₀₃ = {freq_odd[0, 3]:.3f} GHz")
         print(f"ΔE/Eᴄ = {energy_diff[0] / self.e_c_ev:.4f}")
         
-        fig, ax = plt.subplots(figsize=figsize)
+        with plt.style.context(self._style_path):
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Plot even parity (solid lines)
+            for j in range(num_levels):
+                ax.plot(offset_charges, freq_even[:, j], linewidth=2, 
+                       label=f'|{j},e⟩' if j < 2 else None)
+            
+            # Plot odd parity (dashed lines)
+            for j in range(num_levels):
+                ax.plot(offset_charges, freq_odd[:, j], '--', 
+                       linewidth=2,
+                       label=f'|{j},o⟩' if j < 2 else None)
+            
+            ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+            ax.set_ylabel(r'$f_{0j}$ [GHz]')
+            ax.set_title(f'$E_J / E_C = {self.ej_ec_ratio:.1f}$')
+            ax.minorticks_on()
+            if num_levels <= 4:
+                ax.legend()
+            ax.grid(alpha=0.3)
         
-        # Plot even parity (solid lines)
-        for j in range(num_levels):
-            ax.plot(offset_charges, freq_even[:, j], linewidth=2, 
-                   label=f'|{j},e⟩' if j < 2 else None)
-        
-        # Plot odd parity (dashed lines)
-        for j in range(num_levels):
-            ax.plot(offset_charges, freq_odd[:, j], '--', linewidth=2,
-                   label=f'|{j},o⟩' if j < 2 else None)
-        
-        ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=14)
-        ax.set_ylabel(r'$f_{0j}$ [GHz]', fontsize=14)
-        ax.set_title(f'$E_J / E_C = {self.ej_ec_ratio:.1f}$', 
-                    fontsize=14)
-        ax.tick_params(labelsize=12)
-        ax.minorticks_on()
-        if num_levels <= 4:
-            ax.legend(fontsize=12)
-        ax.grid(alpha=0.3)
-        
-        plt.tight_layout()
         return fig, ax
     
     def plot_matrix_elements(self, offset_charges=None, 
@@ -482,23 +483,21 @@ class OCS:
             )
             matrix_elems[i, :] = mat[0, :]  # From ground state
         
-        fig, ax = plt.subplots(figsize=figsize)
+        with plt.style.context(self._style_path):
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Plot only transitions (j>0)
+            for j in range(1, num_levels):
+                ax.semilogy(offset_charges, matrix_elems[:, j], 
+                           linewidth=2, label=f'j={j}')
+            
+            ax.set_ylim([1e-5, 2e0])
+            ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+            ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|$')
+            ax.minorticks_on()
+            ax.legend()
+            ax.grid(alpha=0.3, which='both')
         
-        # Plot only transitions (j>0)
-        for j in range(1, num_levels):
-            ax.semilogy(offset_charges, matrix_elems[:, j], 
-                       linewidth=2, label=f'j={j}')
-        
-        ax.set_ylim([1e-5, 2e0])
-        ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=14)
-        ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|$', 
-                     fontsize=14)
-        ax.tick_params(labelsize=12)
-        ax.minorticks_on()
-        ax.legend(fontsize=12)
-        ax.grid(alpha=0.3, which='both')
-        
-        plt.tight_layout()
         return fig, ax
     
     def plot_dispersive_shift(self, offset_charges=None, 
@@ -540,26 +539,22 @@ class OCS:
             )
             chi_vals[i, :] = chi_ip
         
-        fig, ax = plt.subplots(figsize=figsize)
+        with plt.style.context(self._style_path):
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Plot full range showing even and odd parity behavior
+            for j in range(2):
+                ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
+                       linewidth=2, label=f'|{j}⟩')
+            
+            ax.set_xlim([0, 1])
+            ax.set_ylim([-20, 20])
+            ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+            ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
+            ax.minorticks_on()
+            ax.legend()
+            ax.grid(alpha=0.3)
         
-        # Plot full range showing even and odd parity behavior
-        for j in range(2):
-            ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
-                   linewidth=2, label=f'|{j}⟩')
-        
-        ax.set_xlim([0, 1])
-        ax.set_ylim([-20, 20])
-        ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=14)
-        ax.set_ylabel(
-            r'$\chi_{i,p}$ [MHz]', 
-            fontsize=14
-        )
-        ax.tick_params(labelsize=12)
-        ax.minorticks_on()
-        ax.legend(fontsize=12)
-        ax.grid(alpha=0.3)
-        
-        plt.tight_layout()
         return fig, ax
     
     def plot_parity_shift_vs_frequency(self, freq_range_hz=None, 
@@ -609,14 +604,14 @@ class OCS:
             )
             chi_diff[i] = chi_ip_1[0] - chi_ip_2[0]
         
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
-                   linewidth=2)
-        ax.set_xlabel('Resonator Frequency [GHz]', fontsize=14)
-        ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]', fontsize=14)
-        ax.tick_params(labelsize=12)
-        ax.minorticks_on()
-        ax.grid(alpha=0.3, which='both')
+        with plt.style.context(self._style_path):
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
+                       linewidth=2)
+            ax.set_xlabel('Resonator Frequency [GHz]')
+            ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]')
+            ax.minorticks_on()
+            ax.grid(alpha=0.3, which='both')
         
         # Print summary
         _, energies_odd, _ = self.solve_system([0], 4)
@@ -639,7 +634,6 @@ class OCS:
         print(f"χ (resonator state shift): {chi_resonator / 1e6:.3f} MHz")
         print(f"Δχ (parity shift): {chi_diff[0] / 1e6:.3f} MHz")
         
-        plt.tight_layout()
         return fig, ax
     
     def plot_all(self, offset_charges=None, coupling_g_hz=150e6, 

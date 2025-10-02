@@ -7,6 +7,9 @@ cd OCS
 pip install -r requirements.txt
 ```
 
+**Note**: All plots use a custom style (`ocs.mplstyle`) for 
+publication-quality figures with PRL-standard dimensions.
+
 ## Basic Usage (3 lines)
 
 ```python

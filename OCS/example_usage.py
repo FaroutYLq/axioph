@@ -8,6 +8,10 @@ offset-charge-sensitive transmons.
 import numpy as np
 import matplotlib.pyplot as plt
 from ocs_transmon import OCS
+from pathlib import Path
+
+# Load custom style
+_style_path = Path(__file__).parent / "ocs.mplstyle"
 
 
 def example_1_basic_usage():
@@ -175,29 +179,29 @@ def example_5_parameter_scan():
     ej_ec_ratios = [5, 10, 15, 20, 30, 50]
     offset_charges = np.linspace(0, 1, 200)
     
-    fig, ax = plt.subplots(figsize=(10, 7.5))
-    
-    for ratio in ej_ec_ratios:
-        e_c_hz = e_j_hz / ratio
-        ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3)
+    with plt.style.context(_style_path):
+        fig, ax = plt.subplots(figsize=(3.375, 2.72))
         
-        energies_even, energies_odd, _ = ocs.solve_system(
-            offset_charges, num_levels=2
-        )
+        for ratio in ej_ec_ratios:
+            e_c_hz = e_j_hz / ratio
+            ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3)
+            
+            energies_even, energies_odd, _ = ocs.solve_system(
+                offset_charges, num_levels=2
+            )
+            
+            # Plot f_01 for odd parity
+            freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
+                      ocs.PLANCK_EV_S / 1e9)
+            ax.plot(offset_charges, freq_01, linewidth=2, 
+                   label=f'$E_J/E_C = {ratio}$')
         
-        # Plot f_01 for odd parity
-        freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
-                  ocs.PLANCK_EV_S / 1e9)
-        ax.plot(offset_charges, freq_01, linewidth=2, 
-               label=f'$E_J/E_C = {ratio}$')
-    
-    ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=14)
-    ax.set_ylabel(r'$f_{01}$ [GHz] (odd parity)', fontsize=14)
-    ax.set_title('Charge Dispersion vs $E_J/E_C$ Ratio', fontsize=14)
-    ax.legend(fontsize=11)
-    ax.grid(alpha=0.3)
-    ax.minorticks_on()
-    plt.tight_layout()
+        ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+        ax.set_ylabel(r'$f_{01}$ [GHz] (odd parity)')
+        ax.set_title('Charge Dispersion vs $E_J/E_C$ Ratio')
+        ax.legend()
+        ax.grid(alpha=0.3)
+        ax.minorticks_on()
     
     print(f"\nScanned Eⱼ/Eᴄ ratios: {ej_ec_ratios}")
     print("Higher ratios → smaller charge dispersion (more transmon-like)")

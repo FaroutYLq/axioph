@@ -8,6 +8,10 @@ OCS transmons with different superconductors (Al, Hf, Nb, TiN)
 import numpy as np
 import matplotlib.pyplot as plt
 from ocs_transmon import OCS
+from pathlib import Path
+
+# Load custom style
+_style_path = Path(__file__).parent / "ocs.mplstyle"
 
 
 def example_compare_materials():
@@ -43,44 +47,43 @@ def example_compare_materials():
     # Compare energy level dispersion
     offset_charges = np.linspace(0, 1, 400)
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
-    for mat in materials:
-        ocs = ocs_instances[mat]
-        energies_even, energies_odd, _ = ocs.solve_system(
-            offset_charges, num_levels=2
-        )
+    with plt.style.context(_style_path):
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.72))
         
-        # Plot f_01 for odd parity
-        freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
-                  ocs.PLANCK_EV_S / 1e9)
+        for mat in materials:
+            ocs = ocs_instances[mat]
+            energies_even, energies_odd, _ = ocs.solve_system(
+                offset_charges, num_levels=2
+            )
+            
+            # Plot f_01 for odd parity
+            freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
+                      ocs.PLANCK_EV_S / 1e9)
+            
+            # Calculate dispersion (max - min frequency)
+            dispersion = np.max(freq_01) - np.min(freq_01)
+            
+            ax1.plot(offset_charges, freq_01, linewidth=2, 
+                    label=f'{mat} (Tc={ocs.tc:.2f}K)')
+            
+            # Plot ground state energy
+            e_ground = (energies_odd[:, 0] - energies_odd[0, 0]) / (
+                ocs.PLANCK_EV_S * 1e9
+            )
+            ax2.plot(offset_charges, e_ground * 1e3, linewidth=2,
+                    label=f'{mat}')
         
-        # Calculate dispersion (max - min frequency)
-        dispersion = np.max(freq_01) - np.min(freq_01)
+        ax1.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+        ax1.set_ylabel(r'$f_{01}$ [GHz] (odd parity)')
+        ax1.set_title('Transition Frequency vs Offset Charge')
+        ax1.legend()
+        ax1.grid(alpha=0.3)
         
-        ax1.plot(offset_charges, freq_01, linewidth=2, 
-                label=f'{mat} (Tc={ocs.tc:.2f}K)')
-        
-        # Plot ground state energy
-        e_ground = (energies_odd[:, 0] - energies_odd[0, 0]) / (
-            ocs.PLANCK_EV_S * 1e9
-        )
-        ax2.plot(offset_charges, e_ground * 1e3, linewidth=2,
-                label=f'{mat}')
-    
-    ax1.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=12)
-    ax1.set_ylabel(r'$f_{01}$ [GHz] (odd parity)', fontsize=12)
-    ax1.set_title('Transition Frequency vs Offset Charge', fontsize=13)
-    ax1.legend(fontsize=10)
-    ax1.grid(alpha=0.3)
-    
-    ax2.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=12)
-    ax2.set_ylabel(r'$E_0$ - $E_0$(u=0) [MHz]', fontsize=12)
-    ax2.set_title('Ground State Energy Dispersion', fontsize=13)
-    ax2.legend(fontsize=10)
-    ax2.grid(alpha=0.3)
-    
-    plt.tight_layout()
+        ax2.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+        ax2.set_ylabel(r'$E_0$ - $E_0$(u=0) [MHz]')
+        ax2.set_title('Ground State Energy Dispersion')
+        ax2.legend()
+        ax2.grid(alpha=0.3)
     
     return fig
 
