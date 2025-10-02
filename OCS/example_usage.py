@@ -41,7 +41,7 @@ def example_1_basic_usage():
     figs = ocs.plot_all(
         coupling_g_hz=150e6,  # 150 MHz
         resonator_freq_hz=7.0e9,  # 7 GHz
-        num_levels=6
+        num_levels=5
     )
     
     return ocs, figs
@@ -71,7 +71,7 @@ def example_2_serniak_parameters():
     figs = ocs.plot_all(
         coupling_g_hz=150e6,
         resonator_freq_hz=7.0e9,
-        num_levels=6
+        num_levels=5
     )
     
     return ocs, figs

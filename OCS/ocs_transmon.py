@@ -587,12 +587,13 @@ class OCS:
             cmap_odd = cm.get_cmap('Blues')
             
             # Plot full range showing even and odd parity behavior
-            for j in range(2):
-                color = cmap_odd(0.3 + 0.7 * j / max(1, 1))
+            for j in range(num_levels-2):
+                color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 3, 1))
                 ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
                        linewidth=2, color=color, label=f'|{j}⟩')
             
             ax.set_xlim([0, 1])
+            ax.set_ylim([-10, 10])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
             
@@ -793,7 +794,7 @@ def main():
     ocs = OCS(
         e_j_hz=e_j_hz,
         e_c_hz=e_c_hz,
-        temperature_k=0.02,  # 20 mK
+        temperature_k=0.012,  # 12 mK
         r_n_ohm=27e3  # 27 kΩ
     )
     
@@ -801,7 +802,7 @@ def main():
     figs = ocs.plot_all(
         coupling_g_hz=150e6,  # 150 MHz
         resonator_freq_hz=7.0e9,  # 7 GHz
-        num_levels=6
+        num_levels=5
     )
     
     plt.show()
