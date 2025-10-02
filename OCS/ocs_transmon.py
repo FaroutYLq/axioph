@@ -378,8 +378,8 @@ class OCS:
         
         return matrix_elements, chi_ip
     
-    def plot_energy_levels(self, offset_charges=None, num_levels=4, 
-                          figsize=(10, 7.5)):
+    def plot_energy_levels(self, offset_charges=None, num_levels=5, freq_resonator_hz=None,
+                          figsize=(4, 3)):
         """
         Plot energy level diagram vs offset charge
         
@@ -392,7 +392,7 @@ class OCS:
         num_levels : int, optional
             Number of levels to plot, default 4
         figsize : tuple, optional
-            Figure size (width, height), default (10, 7.5)
+            Figure size (width, height), default (4, 3)
             
         Returns
         -------
@@ -425,23 +425,26 @@ class OCS:
             fig, ax = plt.subplots(figsize=figsize)
             
             # Get colormaps
-            cmap_even = cm.get_cmap('magma')
-            cmap_odd = cm.get_cmap('GnBu')
+            cmap_even = cm.get_cmap('Reds')
+            cmap_odd = cm.get_cmap('Blues')
             
-            # Plot even parity (solid lines) - magma colormap
+            # Plot even parity (solid lines) - Reds colormap
             for j in range(num_levels):
                 color = cmap_even(0.2 + 0.7 * j / max(num_levels - 1, 1))
                 ax.plot(offset_charges, freq_even[:, j], linewidth=2, 
                        color=color,
-                       label=f'|{j},e⟩' if j < 2 else None)
+                       label=f'|{j},e⟩')
             
-            # Plot odd parity (dashed lines) - GnBu colormap
+            # Plot odd parity (dashed lines) - Blues colormap
             for j in range(num_levels):
                 color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 1, 1))
-                ax.plot(offset_charges, freq_odd[:, j], '--', 
+                ax.plot(offset_charges, freq_odd[:, j], 
                        linewidth=2, color=color,
-                       label=f'|{j},o⟩' if j < 2 else None)
+                       label=f'|{j},o⟩')
             
+            if freq_resonator_hz is not None:
+                ax.axhline(freq_resonator_hz / 1e9, color='black', linestyle=':')
+
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$f_{0j}$ [GHz]')
             ax.set_title(f'$E_J / E_C = {self.ej_ec_ratio:.1f}$')
@@ -455,7 +458,7 @@ class OCS:
     def plot_matrix_elements(self, offset_charges=None, 
                             coupling_g_hz=150e6, 
                             resonator_freq_hz=7.0e9, num_levels=6, 
-                            figsize=(10, 7.5)):
+                            figsize=(4, 3)):
         """
         Plot charge matrix elements vs offset charge
         
@@ -472,7 +475,7 @@ class OCS:
         num_levels : int, optional
             Number of levels, default 6
         figsize : tuple, optional
-            Figure size, default (10, 7.5)
+            Figure size, default (4, 3)
             
         Returns
         -------
@@ -494,7 +497,7 @@ class OCS:
             fig, ax = plt.subplots(figsize=figsize)
             
             # Get colormap for odd parity
-            cmap_odd = cm.get_cmap('GnBu')
+            cmap_odd = cm.get_cmap('Blues')
             
             # Plot only transitions (j>0)
             for j in range(1, num_levels):
@@ -514,7 +517,7 @@ class OCS:
     def plot_dispersive_shift(self, offset_charges=None, 
                              coupling_g_hz=150e6, 
                              resonator_freq_hz=7.0e9,
-                             num_levels=6, figsize=(10, 7.5)):
+                             num_levels=6, figsize=(4, 3)):
         """
         Plot dispersive shift χ vs offset charge
         
@@ -532,7 +535,7 @@ class OCS:
         num_levels : int, optional
             Number of levels, default 6
         figsize : tuple, optional
-            Figure size, default (10, 7.5)
+            Figure size, default (4, 3)
             
         Returns
         -------
@@ -554,7 +557,7 @@ class OCS:
             fig, ax = plt.subplots(figsize=figsize)
             
             # Get colormap for odd parity
-            cmap_odd = cm.get_cmap('GnBu')
+            cmap_odd = cm.get_cmap('Blues')
             
             # Plot full range showing even and odd parity behavior
             for j in range(2):
@@ -563,7 +566,6 @@ class OCS:
                        linewidth=2, color=color, label=f'|{j}⟩')
             
             ax.set_xlim([0, 1])
-            ax.set_ylim([-20, 20])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
             ax.minorticks_on()
@@ -591,7 +593,7 @@ class OCS:
         num_levels : int, optional
             Number of levels, default 6
         figsize : tuple, optional
-            Figure size, default (10, 7.5)
+            Figure size, default (4, 3)
             
         Returns
         -------
@@ -622,12 +624,8 @@ class OCS:
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
-            # Use GnBu colormap for parity-related measurement
-            cmap_odd = cm.get_cmap('GnBu')
-            color = cmap_odd(0.6)
-            
             ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
-                       linewidth=2, color=color, label='Parity contrast')
+                       linewidth=2)
             ax.set_xlabel('Resonator Frequency [GHz]')
             ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]')
             ax.minorticks_on()
@@ -705,7 +703,7 @@ class OCS:
         
         # Figure 1: Energy levels
         print("\n[1/4] Plotting energy levels...")
-        fig1, _ = self.plot_energy_levels(offset_charges, num_levels=4)
+        fig1, _ = self.plot_energy_levels(offset_charges, num_levels, resonator_freq_hz)
         figs.append(fig1)
         
         # Figure 2: Matrix elements
