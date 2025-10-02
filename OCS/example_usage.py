@@ -7,6 +7,7 @@ offset-charge-sensitive transmons.
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from ocs_transmon import OCS
 from pathlib import Path
 
@@ -182,7 +183,11 @@ def example_5_parameter_scan():
     with plt.style.context(_style_path):
         fig, ax = plt.subplots(figsize=(3.375, 2.72))
         
-        for ratio in ej_ec_ratios:
+        # Use GnBu colormap for odd parity
+        cmap_odd = cm.get_cmap('GnBu')
+        n_ratios = len(ej_ec_ratios)
+        
+        for idx, ratio in enumerate(ej_ec_ratios):
             e_c_hz = e_j_hz / ratio
             ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3)
             
@@ -190,10 +195,13 @@ def example_5_parameter_scan():
                 offset_charges, num_levels=2
             )
             
+            # Get color from colormap
+            color = cmap_odd(0.3 + 0.7 * idx / max(n_ratios - 1, 1))
+            
             # Plot f_01 for odd parity
             freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
                       ocs.PLANCK_EV_S / 1e9)
-            ax.plot(offset_charges, freq_01, linewidth=2, 
+            ax.plot(offset_charges, freq_01, linewidth=2, color=color,
                    label=f'$E_J/E_C = {ratio}$')
         
         ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')

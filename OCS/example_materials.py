@@ -7,6 +7,7 @@ OCS transmons with different superconductors (Al, Hf, Nb, TiN)
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from ocs_transmon import OCS
 from pathlib import Path
 
@@ -50,11 +51,18 @@ def example_compare_materials():
     with plt.style.context(_style_path):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.72))
         
-        for mat in materials:
+        # Use GnBu colormap for odd parity comparisons
+        cmap_odd = cm.get_cmap('GnBu')
+        n_materials = len(materials)
+        
+        for idx, mat in enumerate(materials):
             ocs = ocs_instances[mat]
             energies_even, energies_odd, _ = ocs.solve_system(
                 offset_charges, num_levels=2
             )
+            
+            # Get color from colormap
+            color = cmap_odd(0.3 + 0.7 * idx / max(n_materials - 1, 1))
             
             # Plot f_01 for odd parity
             freq_01 = ((energies_odd[:, 1] - energies_odd[:, 0]) / 
@@ -63,7 +71,7 @@ def example_compare_materials():
             # Calculate dispersion (max - min frequency)
             dispersion = np.max(freq_01) - np.min(freq_01)
             
-            ax1.plot(offset_charges, freq_01, linewidth=2, 
+            ax1.plot(offset_charges, freq_01, linewidth=2, color=color,
                     label=f'{mat} (Tc={ocs.tc:.2f}K)')
             
             # Plot ground state energy
@@ -71,7 +79,7 @@ def example_compare_materials():
                 ocs.PLANCK_EV_S * 1e9
             )
             ax2.plot(offset_charges, e_ground * 1e3, linewidth=2,
-                    label=f'{mat}')
+                    color=color, label=f'{mat}')
         
         ax1.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
         ax1.set_ylabel(r'$f_{01}$ [GHz] (odd parity)')

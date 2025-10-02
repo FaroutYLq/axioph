@@ -424,15 +424,22 @@ class OCS:
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
-            # Plot even parity (solid lines)
+            # Get colormaps
+            cmap_even = cm.get_cmap('magma')
+            cmap_odd = cm.get_cmap('GnBu')
+            
+            # Plot even parity (solid lines) - magma colormap
             for j in range(num_levels):
+                color = cmap_even(0.2 + 0.7 * j / max(num_levels - 1, 1))
                 ax.plot(offset_charges, freq_even[:, j], linewidth=2, 
+                       color=color,
                        label=f'|{j},e⟩' if j < 2 else None)
             
-            # Plot odd parity (dashed lines)
+            # Plot odd parity (dashed lines) - GnBu colormap
             for j in range(num_levels):
+                color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 1, 1))
                 ax.plot(offset_charges, freq_odd[:, j], '--', 
-                       linewidth=2,
+                       linewidth=2, color=color,
                        label=f'|{j},o⟩' if j < 2 else None)
             
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
@@ -440,7 +447,7 @@ class OCS:
             ax.set_title(f'$E_J / E_C = {self.ej_ec_ratio:.1f}$')
             ax.minorticks_on()
             if num_levels <= 4:
-                ax.legend()
+                ax.legend(loc="best")
             ax.grid(alpha=0.3)
         
         return fig, ax
@@ -486,16 +493,20 @@ class OCS:
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
+            # Get colormap for odd parity
+            cmap_odd = cm.get_cmap('GnBu')
+            
             # Plot only transitions (j>0)
             for j in range(1, num_levels):
+                color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 1, 1))
                 ax.semilogy(offset_charges, matrix_elems[:, j], 
-                           linewidth=2, label=f'j={j}')
+                           linewidth=2, color=color, label=f'j={j}')
             
             ax.set_ylim([1e-5, 2e0])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|$')
             ax.minorticks_on()
-            ax.legend()
+            ax.legend(loc="best")
             ax.grid(alpha=0.3, which='both')
         
         return fig, ax
@@ -542,17 +553,21 @@ class OCS:
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
+            # Get colormap for odd parity
+            cmap_odd = cm.get_cmap('GnBu')
+            
             # Plot full range showing even and odd parity behavior
             for j in range(2):
+                color = cmap_odd(0.3 + 0.7 * j / max(1, 1))
                 ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
-                       linewidth=2, label=f'|{j}⟩')
+                       linewidth=2, color=color, label=f'|{j}⟩')
             
             ax.set_xlim([0, 1])
             ax.set_ylim([-20, 20])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
             ax.minorticks_on()
-            ax.legend()
+            ax.legend(loc="best")
             ax.grid(alpha=0.3)
         
         return fig, ax
@@ -560,7 +575,7 @@ class OCS:
     def plot_parity_shift_vs_frequency(self, freq_range_hz=None, 
                                       coupling_g_hz=150e6, 
                                       num_levels=6,
-                                      figsize=(10, 7.5)):
+                                      figsize=(4, 3)):
         """
         Plot parity-dependent dispersive shift vs resonator frequency
         
@@ -606,11 +621,17 @@ class OCS:
         
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
+            
+            # Use GnBu colormap for parity-related measurement
+            cmap_odd = cm.get_cmap('GnBu')
+            color = cmap_odd(0.6)
+            
             ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
-                       linewidth=2)
+                       linewidth=2, color=color, label='Parity contrast')
             ax.set_xlabel('Resonator Frequency [GHz]')
             ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]')
             ax.minorticks_on()
+            ax.legend(loc="best")
             ax.grid(alpha=0.3, which='both')
         
         # Print summary
