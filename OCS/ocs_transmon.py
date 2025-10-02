@@ -705,7 +705,7 @@ class OCS:
         return fig, ax
     
     def plot_all(self, offset_charges=None, coupling_g_hz=150e6, 
-                resonator_freq_hz=7.0e9, num_levels=6):
+                resonator_freq_hz=7.0e9, num_levels=5):
         """
         Generate all standard plots for OCS transmon analysis
         
