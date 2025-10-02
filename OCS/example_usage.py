@@ -173,7 +173,7 @@ def example_5_parameter_scan():
     
     # Scan different ratios
     ej_ec_ratios = [5, 10, 15, 20, 30, 50]
-    offset_charges = np.linspace(0, 0.5, 100)
+    offset_charges = np.linspace(0, 1, 200)
     
     fig, ax = plt.subplots(figsize=(10, 7.5))
     

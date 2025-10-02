@@ -41,7 +41,7 @@ def example_compare_materials():
         print()
     
     # Compare energy level dispersion
-    offset_charges = np.linspace(0, 0.5, 200)
+    offset_charges = np.linspace(0, 1, 400)
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     

@@ -209,7 +209,7 @@ e_c_hz = 0.695e9
 
 # Compare materials
 materials = ['aluminum', 'hafnium', 'niobium']
-offset_charges = np.linspace(0, 0.5, 200)
+offset_charges = np.linspace(0, 1, 400)
 
 for mat in materials:
     ocs = OCS(e_j_hz, e_c_hz, material=mat)

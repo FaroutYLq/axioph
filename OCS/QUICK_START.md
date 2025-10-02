@@ -96,7 +96,7 @@ import matplotlib.pyplot as plt
 
 # Scan E_J/E_C ratios
 ratios = [5, 10, 15, 20, 30, 50]
-offset_charges = np.linspace(0, 0.5, 100)
+offset_charges = np.linspace(0, 1, 200)
 
 for ratio in ratios:
     e_c = 0.4 * OCS.KB_EV_K / ratio

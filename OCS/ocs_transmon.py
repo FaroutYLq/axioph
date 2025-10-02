@@ -456,7 +456,7 @@ class OCS:
         Parameters
         ----------
         offset_charges : array_like, optional
-            Offset charge values, default linspace(0, 0.5, 250)
+            Offset charge values, default linspace(0, 1, 500)
         coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
         resonator_freq_hz : float, optional
@@ -471,7 +471,7 @@ class OCS:
         fig, ax : matplotlib figure and axes
         """
         if offset_charges is None:
-            offset_charges = np.linspace(0, 0.5, 250)
+            offset_charges = np.linspace(0, 1, 500)
         
         num_points = len(offset_charges)
         matrix_elems = np.zeros((num_points, num_levels))
@@ -514,7 +514,7 @@ class OCS:
         Parameters
         ----------
         offset_charges : array_like, optional
-            Offset charge values, default linspace(0, 0.5, 250)
+            Offset charge values, default linspace(0, 1, 500)
         coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
         resonator_freq_hz : float, optional
@@ -529,7 +529,7 @@ class OCS:
         fig, ax : matplotlib figure and axes
         """
         if offset_charges is None:
-            offset_charges = np.linspace(0, 0.5, 250)
+            offset_charges = np.linspace(0, 1, 500)
         
         num_points = len(offset_charges)
         chi_vals = np.zeros((num_points, num_levels))
@@ -542,27 +542,12 @@ class OCS:
         
         fig, ax = plt.subplots(figsize=figsize)
         
-        # Plot first half and mirror for even/odd comparison
-        mid = len(offset_charges) // 2
-        quarter = len(offset_charges) // 4
-        
-        # First quarter - odd parity
+        # Plot full range showing even and odd parity behavior
         for j in range(2):
-            ax.plot(offset_charges[:quarter+1], 
-                   chi_vals[:quarter+1, j] / 1e6, 
-                   linewidth=2, label=f'|{j},o⟩')
+            ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
+                   linewidth=2, label=f'|{j}⟩')
         
-        # Third quarter mirrored - even parity
-        idx_start = mid
-        idx_end = mid + quarter + 1
-        u_mirrored = offset_charges[idx_start:idx_end] - (
-            offset_charges[idx_start]
-        )
-        for j in range(2):
-            ax.plot(u_mirrored, chi_vals[idx_start:idx_end, j] / 1e6,
-                   linewidth=2, label=f'|{j},e⟩')
-        
-        ax.set_xlim([0, 0.25])
+        ax.set_xlim([0, 1])
         ax.set_ylim([-20, 20])
         ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]', fontsize=14)
         ax.set_ylabel(
