@@ -14,7 +14,7 @@ publication-quality figures with PRL-standard dimensions.
 
 ```python
 from ocs_transmon import OCS
-ocs = OCS(e_josephson=0.4*OCS.KB_EV_K, e_charging=0.033*OCS.KB_EV_K)
+ocs = OCS(e_j_hz=8.335e9, e_c_hz=0.695e9)  # 8.3 GHz, 695 MHz
 ocs.plot_all()
 ```
 
@@ -48,26 +48,30 @@ symmetries.
 ```python
 from ocs_transmon import OCS
 
-# Your parameters
-e_j = 0.3 * OCS.KB_EV_K  # 0.3 K
-e_c = 0.02 * OCS.KB_EV_K  # 0.02 K
+# Your parameters (in Hz)
+e_j_hz = 6.26e9  # ~6.3 GHz (equivalent to 0.3 K·kB)
+e_c_hz = 0.417e9  # ~417 MHz (equivalent to 0.02 K·kB)
 
-ocs = OCS(e_j, e_c, temperature=0.020, normal_resistance=30e3)
+ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.020, r_n_ohm=30e3)
 
 # Single plot
 fig, ax = ocs.plot_energy_levels()
 
 # Or all plots
-figs = ocs.plot_all(coupling_g=200e6, resonator_freq=6.5e9)
+figs = ocs.plot_all(coupling_g_hz=200e6, resonator_freq_hz=6.5e9)
 ```
 
 ### Recipe 2: From Capacitance
 
 ```python
+# Get material properties
+al_props = OCS.get_material_properties('aluminum')
+delta_hz = al_props['delta'] / OCS.PLANCK_EV_S  # Convert eV to Hz
+
 ocs = OCS.from_capacitance(
-    total_capacitance=70e-15,  # 70 fF
-    delta=1.89e-4,  # Al gap in eV
-    normal_resistance=25e3  # 25 kΩ
+    c_total_f=70e-15,  # 70 fF
+    delta_hz=delta_hz,  # Al gap in Hz
+    r_n_ohm=25e3  # 25 kΩ
 )
 ```
 
@@ -83,8 +87,8 @@ energies_even, energies_odd, energy_diff = ocs.solve_system(
 # Dispersive shift
 matrix_elements, chi_ip = ocs.compute_dispersive_matrix(
     offset_charge=0.5,
-    coupling_g=150e6,
-    resonator_freq=7e9,
+    coupling_g_hz=150e6,
+    resonator_freq_hz=7e9,
     num_levels=6
 )
 
@@ -100,10 +104,11 @@ import matplotlib.pyplot as plt
 # Scan E_J/E_C ratios
 ratios = [5, 10, 15, 20, 30, 50]
 offset_charges = np.linspace(0, 1, 200)
+e_j_hz = 8.335e9  # Fix E_J at ~8.3 GHz
 
 for ratio in ratios:
-    e_c = 0.4 * OCS.KB_EV_K / ratio
-    ocs = OCS(0.4 * OCS.KB_EV_K, e_c)
+    e_c_hz = e_j_hz / ratio
+    ocs = OCS(e_j_hz, e_c_hz)
     
     _, energies_odd, _ = ocs.solve_system(offset_charges)
     freq_01 = (energies_odd[:, 1] - energies_odd[:, 0]) / (
@@ -125,8 +130,10 @@ Access via class attributes:
 OCS.PLANCK_EV_S    # Planck constant [eV·s]
 OCS.KB_EV_K        # Boltzmann constant [eV/K]
 OCS.ELECTRON_CHARGE # Elementary charge [C]
-OCS.DELTA_AL       # Al superconducting gap [eV]
-OCS.DOS_AL         # Al density of states [1/(μm³·eV)]
+
+# Material properties are loaded from materials.yaml
+OCS.list_materials()  # List available materials
+OCS.get_material_properties('aluminum')  # Get specific material
 ```
 
 ## Key Methods
