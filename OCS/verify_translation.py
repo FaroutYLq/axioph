@@ -80,7 +80,7 @@ def verify_basic_calculation():
     resonator_freq_hz = 7.0e9  # Hz
     
     # At u=0 (odd parity)
-    matrix_elements, chi = ocs.compute_dispersive_matrix(
+    matrix_elements, chi_ip = ocs.compute_dispersive_matrix(
         offset_charge=0.5,
         coupling_g_hz=coupling_g_hz,
         resonator_freq_hz=resonator_freq_hz,
@@ -88,14 +88,14 @@ def verify_basic_calculation():
     )
     
     # At u=0.5 (even parity)
-    matrix_elements_2, chi_2 = ocs.compute_dispersive_matrix(
+    matrix_elements_2, chi_ip_2 = ocs.compute_dispersive_matrix(
         offset_charge=1.0,
         coupling_g_hz=coupling_g_hz,
         resonator_freq_hz=resonator_freq_hz,
         num_levels=6
     )
     
-    chi_parity = chi[0] - chi_2[0]
+    chi_parity = chi_ip[0] - chi_ip_2[0]
     
     # Anharmonicity and chi_resonator
     anharmonicity = (freq_odd[0, 2] - 2 * freq_odd[0, 1]) * 1e9  # Hz

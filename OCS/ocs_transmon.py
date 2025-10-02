@@ -330,8 +330,8 @@ class OCS:
         -------
         matrix_elements : ndarray
             Matrix elements |⟨j|n̂|0⟩|², shape (num_levels, num_levels)
-        chi : ndarray
-            Dispersive shift χᵢ [Hz], shape (num_levels,)
+        chi_ip : ndarray
+            Dispersive shift χᵢ,ₚ [Hz], shape (num_levels,)
         """
         # Solve eigensystem
         eigenvalues, eigenvectors = self.solve_eigensystem(
@@ -346,7 +346,7 @@ class OCS:
         # Transform to energy eigenbasis
         total_states = len(eigenvalues)
         matrix_elements = np.zeros((num_levels, num_levels))
-        chi = np.zeros(num_levels)
+        chi_ip = np.zeros(num_levels)
         
         for i in range(num_levels):
             for j in range(total_states):
@@ -369,12 +369,12 @@ class OCS:
                     # Dispersive shift contribution
                     chi_contrib = (2.0 * omega_ij * mat_elem_sq / 
                                   (omega_ij ** 2 - resonator_freq_hz ** 2))
-                    chi[i] += chi_contrib
+                    chi_ip[i] += chi_contrib
         
         # Scale by coupling strength squared
-        chi *= coupling_g_hz ** 2
+        chi_ip *= coupling_g_hz ** 2
         
-        return matrix_elements, chi
+        return matrix_elements, chi_ip
     
     def plot_energy_levels(self, offset_charges=None, num_levels=4, 
                           figsize=(10, 7.5)):
@@ -535,10 +535,10 @@ class OCS:
         chi_vals = np.zeros((num_points, num_levels))
         
         for i, u in enumerate(offset_charges):
-            _, chi = self.compute_dispersive_matrix(
+            _, chi_ip = self.compute_dispersive_matrix(
                 u + 0.5, coupling_g_hz, resonator_freq_hz, num_levels
             )
-            chi_vals[i, :] = chi
+            chi_vals[i, :] = chi_ip
         
         fig, ax = plt.subplots(figsize=figsize)
         
@@ -615,14 +615,14 @@ class OCS:
         
         for i, f_r in enumerate(freq_range_hz):
             # Chi at offset charge 0
-            _, chi_1 = self.compute_dispersive_matrix(
+            _, chi_ip_1 = self.compute_dispersive_matrix(
                 0.5, coupling_g_hz, f_r, num_levels
             )
             # Chi at offset charge 0.5
-            _, chi_2 = self.compute_dispersive_matrix(
+            _, chi_ip_2 = self.compute_dispersive_matrix(
                 1.0, coupling_g_hz, f_r, num_levels
             )
-            chi_diff[i] = chi_1[0] - chi_2[0]
+            chi_diff[i] = chi_ip_1[0] - chi_ip_2[0]
         
         fig, ax = plt.subplots(figsize=figsize)
         ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 

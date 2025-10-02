@@ -40,7 +40,7 @@ Ec, Ej              →    e_c, e_j
 EE, EO              →    energies_even, energies_odd
 u                   →    offset_charge(s)
 nlevels             →    num_levels
-chi_ip              →    chi
+chi_ip              →    chi_ip
 matrixelems         →    matrix_elements
 fr, wr              →    resonator_freq
 g                   →    coupling_g

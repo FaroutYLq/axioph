@@ -141,7 +141,7 @@ def example_4_custom_analysis():
     # Compute dispersive shift at a specific point
     coupling_g_hz = 150e6
     resonator_freq_hz = 7.0e9
-    matrix_elements, chi = ocs.compute_dispersive_matrix(
+    matrix_elements, chi_ip = ocs.compute_dispersive_matrix(
         offset_charge=0.5,
         coupling_g_hz=coupling_g_hz,
         resonator_freq_hz=resonator_freq_hz,
@@ -149,8 +149,8 @@ def example_4_custom_analysis():
     )
     
     print(f"\nDispersive shifts at offset charge 0.5:")
-    print(f"χ₀ = {chi[0] / 1e6:.3f} MHz")
-    print(f"χ₁ = {chi[1] / 1e6:.3f} MHz")
+    print(f"χ₀ = {chi_ip[0] / 1e6:.3f} MHz")
+    print(f"χ₁ = {chi_ip[1] / 1e6:.3f} MHz")
     
     print(f"\nMatrix elements |⟨j|n̂|0⟩|:")
     for j in range(1, 4):

@@ -78,14 +78,14 @@ energies_even, energies_odd, energy_diff = ocs.solve_system(
 )
 
 # Dispersive shift
-matrix_elements, chi = ocs.compute_dispersive_matrix(
+matrix_elements, chi_ip = ocs.compute_dispersive_matrix(
     offset_charge=0.5,
     coupling_g=150e6,
     resonator_freq=7e9,
     num_levels=6
 )
 
-print(f"χ₀ = {chi[0] / 1e6:.3f} MHz")
+print(f"χ₀ = {chi_ip[0] / 1e6:.3f} MHz")
 ```
 
 ### Recipe 4: Scan Parameter Space

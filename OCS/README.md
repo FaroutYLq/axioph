@@ -201,7 +201,7 @@ scripts with the following improvements:
 | `EE`, `EO` | `energies_even`, `energies_odd` | Parity-resolved energies |
 | `DE` | `energy_diff` | Parity splitting |
 | `nlevels` | `num_levels` | Number of energy levels |
-| `chi_ip` | `chi` | Dispersive shift |
+| `chi_ip` | `chi_ip` | Dispersive shift |
 | `matrixelems` | `matrix_elements` | Transition matrix elements |
 | `g` | `coupling_g` | Coupling strength |
 | `fr`, `wr` | `resonator_freq` | Resonator frequency |
