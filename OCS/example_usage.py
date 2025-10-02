@@ -20,24 +20,22 @@ def example_1_basic_usage():
     print("Example 1: Basic OCS Transmon Simulation (WashU parameters)")
     print("=" * 70)
     
-    kb_ev_k = OCS.KB_EV_K
-    
-    # WashU parameters from MATLAB script
+    # WashU parameters from MATLAB script (E_J/E_C = 12)
     ej_ec_ratio = 12
-    e_j = 0.4 * kb_ev_k  # eV
-    e_c = e_j / ej_ec_ratio  # eV
+    e_j_hz = 8.335e9  # ~8.3 GHz (equivalent to 0.4 K·kB)
+    e_c_hz = e_j_hz / ej_ec_ratio  # Hz
     
     ocs = OCS(
-        e_josephson=e_j,
-        e_charging=e_c,
-        temperature=0.02,  # K
-        normal_resistance=27e3  # Ω
+        e_j_hz=e_j_hz,
+        e_c_hz=e_c_hz,
+        temperature_k=0.02,  # 20 mK
+        r_n_ohm=27e3  # 27 kΩ
     )
     
     # Generate all plots
     figs = ocs.plot_all(
-        coupling_g=150e6,  # 150 MHz
-        resonator_freq=7.0e9,  # 7 GHz
+        coupling_g_hz=150e6,  # 150 MHz
+        resonator_freq_hz=7.0e9,  # 7 GHz
         num_levels=6
     )
     
@@ -52,23 +50,22 @@ def example_2_serniak_parameters():
     print("Example 2: Serniak Parameters (arXiv:1903.00113)")
     print("=" * 70)
     
-    kb_ev_k = OCS.KB_EV_K
-    
     # Serniak parameters (commented in MATLAB script)
-    e_j = 0.295 * kb_ev_k  # eV
-    e_c = 0.017 * kb_ev_k  # eV
+    # E_J = 0.295 K·kB ≈ 6.15 GHz, E_C = 0.017 K·kB ≈ 0.35 GHz
+    e_j_hz = 6.149e9  # ~6.15 GHz (equivalent to 0.295 K·kB)
+    e_c_hz = 0.354e9  # ~354 MHz (equivalent to 0.017 K·kB)
     
     ocs = OCS(
-        e_josephson=e_j,
-        e_charging=e_c,
-        temperature=0.02,
-        normal_resistance=27e3
+        e_j_hz=e_j_hz,
+        e_c_hz=e_c_hz,
+        temperature_k=0.02,
+        r_n_ohm=27e3
     )
     
     # Generate all plots
     figs = ocs.plot_all(
-        coupling_g=150e6,
-        resonator_freq=7.0e9,
+        coupling_g_hz=150e6,
+        resonator_freq_hz=7.0e9,
         num_levels=6
     )
     
@@ -89,20 +86,21 @@ def example_3_from_capacitance():
     c_shunt = 6.5e-14  # F, shunt capacitance
     c_total = c_j + c_g + c_shunt
     
-    delta = OCS.DELTA_AL  # Superconducting gap
+    # Superconducting gap (convert from eV to Hz)
+    delta_hz = OCS.DELTA_AL / OCS.PLANCK_EV_S  # Hz
     r_n = 27e3  # Normal resistance
     
     ocs = OCS.from_capacitance(
-        total_capacitance=c_total,
-        delta=delta,
-        normal_resistance=r_n,
-        temperature=0.02
+        c_total_f=c_total,
+        delta_hz=delta_hz,
+        r_n_ohm=r_n,
+        temperature_k=0.02
     )
     
     print(f"\nComputed from capacitances:")
     print(f"Cᵨ = {c_total * 1e15:.3f} fF")
-    print(f"Eⱼ = {ocs.e_j / ocs.PLANCK_EV_S / 1e9:.3f} GHz")
-    print(f"Eᴄ = {ocs.e_c / ocs.PLANCK_EV_S / 1e9:.4f} GHz")
+    print(f"Eⱼ = {ocs.e_j_hz / 1e9:.3f} GHz")
+    print(f"Eᴄ = {ocs.e_c_hz / 1e9:.4f} GHz")
     print(f"Eⱼ/Eᴄ = {ocs.ej_ec_ratio:.2f}")
     
     return ocs
@@ -118,11 +116,10 @@ def example_4_custom_analysis():
     print("Example 4: Custom Analysis Workflow")
     print("=" * 70)
     
-    kb_ev_k = OCS.KB_EV_K
-    e_j = 0.4 * kb_ev_k
-    e_c = e_j / 12
+    e_j_hz = 8.335e9  # ~8.3 GHz
+    e_c_hz = e_j_hz / 12
     
-    ocs = OCS(e_j, e_c, temperature=0.02, normal_resistance=27e3)
+    ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3)
     
     # Compute energy levels at specific offset charges
     offset_charges = np.array([0, 0.25, 0.5])
@@ -142,12 +139,12 @@ def example_4_custom_analysis():
               f"{delta_e:<15.6f}")
     
     # Compute dispersive shift at a specific point
-    coupling_g = 150e6
-    resonator_freq = 7.0e9
+    coupling_g_hz = 150e6
+    resonator_freq_hz = 7.0e9
     matrix_elements, chi = ocs.compute_dispersive_matrix(
         offset_charge=0.5,
-        coupling_g=coupling_g,
-        resonator_freq=resonator_freq,
+        coupling_g_hz=coupling_g_hz,
+        resonator_freq_hz=resonator_freq_hz,
         num_levels=4
     )
     
@@ -172,8 +169,7 @@ def example_5_parameter_scan():
     print("Example 5: Parameter Scan over Eⱼ/Eᴄ")
     print("=" * 70)
     
-    kb_ev_k = OCS.KB_EV_K
-    e_j = 0.4 * kb_ev_k
+    e_j_hz = 8.335e9  # ~8.3 GHz
     
     # Scan different ratios
     ej_ec_ratios = [5, 10, 15, 20, 30, 50]
@@ -182,8 +178,8 @@ def example_5_parameter_scan():
     fig, ax = plt.subplots(figsize=(10, 7.5))
     
     for ratio in ej_ec_ratios:
-        e_c = e_j / ratio
-        ocs = OCS(e_j, e_c, temperature=0.02, normal_resistance=27e3)
+        e_c_hz = e_j_hz / ratio
+        ocs = OCS(e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3)
         
         energies_even, energies_odd, _ = ocs.solve_system(
             offset_charges, num_levels=2

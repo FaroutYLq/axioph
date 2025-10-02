@@ -37,54 +37,65 @@ class OCS:
     TC_AL = 1.2  # Critical temperature [K] (AlMn: 0.1, Al: 1.2)
     DELTA_AL = 1.89e-4  # Superconducting gap [eV]
     
-    def __init__(self, e_josephson, e_charging, temperature=0.02,
-                 normal_resistance=27e3, delta_left=None, 
-                 delta_right=None):
+    def __init__(self, e_j_hz, e_c_hz, temperature_k=0.02,
+                 r_n_ohm=27e3, delta_l_hz=None, delta_r_hz=None):
         """
         Initialize OCS transmon simulator
         
         Parameters
         ----------
-        e_josephson : float
-            Josephson energy [eV]
-        e_charging : float
-            Charging energy [eV]
-        temperature : float, optional
+        e_j_hz : float
+            Josephson energy [Hz]
+        e_c_hz : float
+            Charging energy [Hz]
+        temperature_k : float, optional
             Operating temperature [K], default 0.02 K
-        normal_resistance : float, optional
+        r_n_ohm : float, optional
             Normal state resistance [Ω], default 27 kΩ
-        delta_left : float, optional
-            Left superconducting gap [eV], defaults to DELTA_AL
-        delta_right : float, optional
-            Right superconducting gap [eV], defaults to DELTA_AL
+        delta_l_hz : float, optional
+            Left superconducting gap [Hz], defaults to DELTA_AL
+        delta_r_hz : float, optional
+            Right superconducting gap [Hz], defaults to DELTA_AL
         """
-        self.e_j = e_josephson
-        self.e_c = e_charging
-        self.temperature = temperature
-        self.r_n = normal_resistance
-        self.delta_l = delta_left if delta_left is not None else self.DELTA_AL
-        self.delta_r = (delta_right if delta_right is not None 
-                       else self.DELTA_AL)
+        # Store input parameters in their native units
+        self.e_j_hz = e_j_hz
+        self.e_c_hz = e_c_hz
+        self.temperature_k = temperature_k
+        self.r_n_ohm = r_n_ohm
+        
+        # Convert to eV for internal calculations
+        self.e_j_ev = e_j_hz * self.PLANCK_EV_S
+        self.e_c_ev = e_c_hz * self.PLANCK_EV_S
+        
+        # Delta in eV (convert from Hz if provided, else use default)
+        if delta_l_hz is not None:
+            self.delta_l_ev = delta_l_hz * self.PLANCK_EV_S
+        else:
+            self.delta_l_ev = self.DELTA_AL
+            
+        if delta_r_hz is not None:
+            self.delta_r_ev = delta_r_hz * self.PLANCK_EV_S
+        else:
+            self.delta_r_ev = self.DELTA_AL
         
         # Computed quantities
-        self.ej_ec_ratio = self.e_j / self.e_c
+        self.ej_ec_ratio = self.e_j_hz / self.e_c_hz
         self.curly_n = (self.DOS_AL * 
-                       np.sqrt(2 * np.pi * self.delta_l * 
-                               self.KB_EV_K * self.temperature))
+                       np.sqrt(2 * np.pi * self.delta_l_ev * 
+                               self.KB_EV_K * self.temperature_k))
         
     @classmethod
-    def from_capacitance(cls, total_capacitance, delta, 
-                        normal_resistance, **kwargs):
+    def from_capacitance(cls, c_total_f, delta_hz, r_n_ohm, **kwargs):
         """
         Create OCS instance from capacitance and resistance
         
         Parameters
         ----------
-        total_capacitance : float
+        c_total_f : float
             Total capacitance Cᵨ = Cⱼ + Cᵍ + Cₛₕᵤₙₜ [F]
-        delta : float
-            Superconducting gap [eV]
-        normal_resistance : float
+        delta_hz : float
+            Superconducting gap [Hz]
+        r_n_ohm : float
             Normal state resistance [Ω]
         **kwargs
             Additional arguments passed to __init__
@@ -94,11 +105,17 @@ class OCS:
         OCS
             Configured OCS instance
         """
-        e_c = cls.ELECTRON_CHARGE / (2 * total_capacitance)  # eV
-        e_j = (cls.PLANCK_EV_S * delta / 
-              (8 * cls.ELECTRON_CHARGE * normal_resistance))  # eV
-        return cls(e_j, e_c, normal_resistance=normal_resistance, 
-                  **kwargs)
+        # Compute energies in eV first
+        e_c_ev = cls.ELECTRON_CHARGE / (2 * c_total_f)  # eV
+        delta_ev = delta_hz * cls.PLANCK_EV_S  # eV
+        e_j_ev = (cls.PLANCK_EV_S * delta_ev / 
+                 (8 * cls.ELECTRON_CHARGE * r_n_ohm))  # eV
+        
+        # Convert to Hz for the constructor
+        e_c_hz = e_c_ev / cls.PLANCK_EV_S
+        e_j_hz = e_j_ev / cls.PLANCK_EV_S
+        
+        return cls(e_j_hz, e_c_hz, r_n_ohm=r_n_ohm, **kwargs)
     
     def build_hamiltonian(self, offset_charge, charge_cutoff=18):
         """
@@ -128,12 +145,12 @@ class OCS:
         
         # Diagonal: charging energy term 4Eᴄ(n - nᵍ)²
         h[np.arange(n_dim), np.arange(n_dim)] = (
-            4.0 * self.e_c * (charge_states - offset_charge) ** 2
+            4.0 * self.e_c_ev * (charge_states - offset_charge) ** 2
         )
         
         # Off-diagonal: Josephson tunneling -Eⱼ/2
-        h[np.arange(n_dim - 1), np.arange(1, n_dim)] = -self.e_j / 2
-        h[np.arange(1, n_dim), np.arange(n_dim - 1)] = -self.e_j / 2
+        h[np.arange(n_dim - 1), np.arange(1, n_dim)] = -self.e_j_ev / 2
+        h[np.arange(1, n_dim), np.arange(n_dim - 1)] = -self.e_j_ev / 2
         
         return h
     
@@ -207,12 +224,12 @@ class OCS:
         
         # Parity splitting includes superconducting gap difference
         energy_diff = (energies_odd[:, 0] - energies_even[:, 0] + 
-                      self.delta_l - self.delta_r)
+                      self.delta_l_ev - self.delta_r_ev)
         
         return energies_even, energies_odd, energy_diff
     
-    def compute_dispersive_matrix(self, offset_charge, coupling_g, 
-                                  resonator_freq, num_levels=6, 
+    def compute_dispersive_matrix(self, offset_charge, coupling_g_hz, 
+                                  resonator_freq_hz, num_levels=6, 
                                   charge_cutoff=30):
         """
         Compute dispersive shift and matrix elements
@@ -224,9 +241,9 @@ class OCS:
         ----------
         offset_charge : float
             Dimensionless offset charge nᵍ
-        coupling_g : float
+        coupling_g_hz : float
             Transmon-resonator coupling strength [Hz]
-        resonator_freq : float
+        resonator_freq_hz : float
             Resonator frequency [Hz]
         num_levels : int, optional
             Number of levels for matrix elements, default 6
@@ -275,11 +292,11 @@ class OCS:
                     
                     # Dispersive shift contribution
                     chi_contrib = (2.0 * omega_ij * mat_elem_sq / 
-                                  (omega_ij ** 2 - resonator_freq ** 2))
+                                  (omega_ij ** 2 - resonator_freq_hz ** 2))
                     chi[i] += chi_contrib
         
         # Scale by coupling strength squared
-        chi *= coupling_g ** 2
+        chi *= coupling_g_hz ** 2
         
         return matrix_elements, chi
     
@@ -324,7 +341,7 @@ class OCS:
         print(f"E₀₁ = {freq_odd[0, 1]:.3f} GHz")
         print(f"E₀₂ = {freq_odd[0, 2]:.3f} GHz")
         print(f"E₀₃ = {freq_odd[0, 3]:.3f} GHz")
-        print(f"ΔE/Eᴄ = {energy_diff[0] / self.e_c:.4f}")
+        print(f"ΔE/Eᴄ = {energy_diff[0] / self.e_c_ev:.4f}")
         
         fig, ax = plt.subplots(figsize=figsize)
         
@@ -351,8 +368,9 @@ class OCS:
         plt.tight_layout()
         return fig, ax
     
-    def plot_matrix_elements(self, offset_charges=None, coupling_g=150e6,
-                            resonator_freq=7.0e9, num_levels=6, 
+    def plot_matrix_elements(self, offset_charges=None, 
+                            coupling_g_hz=150e6, 
+                            resonator_freq_hz=7.0e9, num_levels=6, 
                             figsize=(10, 7.5)):
         """
         Plot charge matrix elements vs offset charge
@@ -363,9 +381,9 @@ class OCS:
         ----------
         offset_charges : array_like, optional
             Offset charge values, default linspace(0, 0.5, 250)
-        coupling_g : float, optional
+        coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq : float, optional
+        resonator_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -384,7 +402,7 @@ class OCS:
         
         for i, u in enumerate(offset_charges):
             mat, _ = self.compute_dispersive_matrix(
-                u + 0.5, coupling_g, resonator_freq, num_levels
+                u + 0.5, coupling_g_hz, resonator_freq_hz, num_levels
             )
             matrix_elems[i, :] = mat[0, :]  # From ground state
         
@@ -408,7 +426,8 @@ class OCS:
         return fig, ax
     
     def plot_dispersive_shift(self, offset_charges=None, 
-                             coupling_g=150e6, resonator_freq=7.0e9,
+                             coupling_g_hz=150e6, 
+                             resonator_freq_hz=7.0e9,
                              num_levels=6, figsize=(10, 7.5)):
         """
         Plot dispersive shift χ vs offset charge
@@ -420,9 +439,9 @@ class OCS:
         ----------
         offset_charges : array_like, optional
             Offset charge values, default linspace(0, 0.5, 250)
-        coupling_g : float, optional
+        coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq : float, optional
+        resonator_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -441,7 +460,7 @@ class OCS:
         
         for i, u in enumerate(offset_charges):
             _, chi = self.compute_dispersive_matrix(
-                u + 0.5, coupling_g, resonator_freq, num_levels
+                u + 0.5, coupling_g_hz, resonator_freq_hz, num_levels
             )
             chi_vals[i, :] = chi
         
@@ -482,8 +501,9 @@ class OCS:
         plt.tight_layout()
         return fig, ax
     
-    def plot_parity_shift_vs_frequency(self, freq_range=None, 
-                                      coupling_g=150e6, num_levels=6,
+    def plot_parity_shift_vs_frequency(self, freq_range_hz=None, 
+                                      coupling_g_hz=150e6, 
+                                      num_levels=6,
                                       figsize=(10, 7.5)):
         """
         Plot parity-dependent dispersive shift vs resonator frequency
@@ -493,9 +513,9 @@ class OCS:
         
         Parameters
         ----------
-        freq_range : array_like, optional
+        freq_range_hz : array_like, optional
             Resonator frequencies [Hz], auto-computed if None
-        coupling_g : float, optional
+        coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
         num_levels : int, optional
             Number of levels, default 6
@@ -507,29 +527,29 @@ class OCS:
         fig, ax : matplotlib figure and axes
         """
         # Auto-determine frequency range if not provided
-        if freq_range is None:
+        if freq_range_hz is None:
             _, energies_odd, _ = self.solve_system([0, 0.5], 4)
             freq_min = 7.0e9  # Start at 7 GHz
             freq_odd_3 = ((energies_odd[0, 3] - energies_odd[0, 0]) / 
                          self.PLANCK_EV_S)  # f_03
             freq_max = freq_odd_3 + 0.2e9  # Add 200 MHz
-            freq_range = np.arange(freq_min, freq_max, 1e6)
+            freq_range_hz = np.arange(freq_min, freq_max, 1e6)
         
-        chi_diff = np.zeros(len(freq_range))
+        chi_diff = np.zeros(len(freq_range_hz))
         
-        for i, f_r in enumerate(freq_range):
+        for i, f_r in enumerate(freq_range_hz):
             # Chi at offset charge 0
             _, chi_1 = self.compute_dispersive_matrix(
-                0.5, coupling_g, f_r, num_levels
+                0.5, coupling_g_hz, f_r, num_levels
             )
             # Chi at offset charge 0.5
             _, chi_2 = self.compute_dispersive_matrix(
-                1.0, coupling_g, f_r, num_levels
+                1.0, coupling_g_hz, f_r, num_levels
             )
             chi_diff[i] = chi_1[0] - chi_2[0]
         
         fig, ax = plt.subplots(figsize=figsize)
-        ax.semilogy(freq_range / 1e9, np.abs(chi_diff) / 1e6, 
+        ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
                    linewidth=2)
         ax.set_xlabel('Resonator Frequency [GHz]', fontsize=14)
         ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]', fontsize=14)
@@ -546,11 +566,11 @@ class OCS:
         anharmonicity = freq_02 - 2 * freq_01
         
         # Chi at resonator for qubit state readout (simple estimate)
-        if hasattr(self, '_resonator_freq'):
-            f_r_use = self._resonator_freq
+        if hasattr(self, '_resonator_freq_hz'):
+            f_r_use = self._resonator_freq_hz
         else:
             f_r_use = 7.0e9
-        chi_resonator = (coupling_g ** 2 * anharmonicity / 
+        chi_resonator = (coupling_g_hz ** 2 * anharmonicity / 
                         np.abs(f_r_use - freq_01) / 
                         (np.abs(f_r_use - freq_01) + anharmonicity))
         
@@ -561,8 +581,8 @@ class OCS:
         plt.tight_layout()
         return fig, ax
     
-    def plot_all(self, offset_charges=None, coupling_g=150e6, 
-                resonator_freq=7.0e9, num_levels=6):
+    def plot_all(self, offset_charges=None, coupling_g_hz=150e6, 
+                resonator_freq_hz=7.0e9, num_levels=6):
         """
         Generate all standard plots for OCS transmon analysis
         
@@ -576,9 +596,9 @@ class OCS:
         ----------
         offset_charges : array_like, optional
             Offset charge values
-        coupling_g : float, optional
+        coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq : float, optional
+        resonator_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -588,19 +608,19 @@ class OCS:
         figs : list
             List of figure handles
         """
-        self._resonator_freq = resonator_freq  # Store for later use
+        self._resonator_freq_hz = resonator_freq_hz  # Store for later use
         
         print("=" * 60)
         print(f"OCS Transmon Parameters:")
-        print(f"Eⱼ = {self.e_j / self.KB_EV_K:.3f} K·kᴮ = "
-              f"{self.e_j / self.PLANCK_EV_S / 1e9:.3f} GHz")
-        print(f"Eᴄ = {self.e_c / self.KB_EV_K:.4f} K·kᴮ = "
-              f"{self.e_c / self.PLANCK_EV_S / 1e9:.4f} GHz")
+        print(f"Eⱼ = {self.e_j_ev / self.KB_EV_K:.3f} K·kᴮ = "
+              f"{self.e_j_hz / 1e9:.3f} GHz")
+        print(f"Eᴄ = {self.e_c_ev / self.KB_EV_K:.4f} K·kᴮ = "
+              f"{self.e_c_hz / 1e9:.4f} GHz")
         print(f"Eⱼ/Eᴄ = {self.ej_ec_ratio:.2f}")
-        print(f"Rₙ = {self.r_n / 1e3:.1f} kΩ")
-        print(f"Resonator frequency = {resonator_freq / 1e9:.2f} GHz")
-        print(f"Coupling g = {coupling_g / 1e6:.1f} MHz")
-        print(f"FWHM = {resonator_freq / 10000 / 1e6:.2f} MHz")
+        print(f"Rₙ = {self.r_n_ohm / 1e3:.1f} kΩ")
+        print(f"Resonator frequency = {resonator_freq_hz / 1e9:.2f} GHz")
+        print(f"Coupling g = {coupling_g_hz / 1e6:.1f} MHz")
+        print(f"FWHM = {resonator_freq_hz / 10000 / 1e6:.2f} MHz")
         print("=" * 60)
         
         figs = []
@@ -613,21 +633,21 @@ class OCS:
         # Figure 2: Matrix elements
         print("[2/4] Plotting matrix elements...")
         fig2, _ = self.plot_matrix_elements(
-            None, coupling_g, resonator_freq, num_levels
+            None, coupling_g_hz, resonator_freq_hz, num_levels
         )
         figs.append(fig2)
         
         # Figure 3: Dispersive shift
         print("[3/4] Plotting dispersive shift...")
         fig3, _ = self.plot_dispersive_shift(
-            None, coupling_g, resonator_freq, num_levels
+            None, coupling_g_hz, resonator_freq_hz, num_levels
         )
         figs.append(fig3)
         
         # Figure 4: Parity shift vs frequency
         print("[4/4] Plotting parity shift vs frequency...")
         fig4, _ = self.plot_parity_shift_vs_frequency(
-            None, coupling_g, num_levels
+            None, coupling_g_hz, num_levels
         )
         figs.append(fig4)
         
@@ -638,24 +658,22 @@ class OCS:
 def main():
     """Example usage of OCS class"""
     # Example from the MATLAB script (WashU parameters)
-    kb_ev_k = OCS.KB_EV_K
-    
     ej_ec_ratio = 12
-    e_j = 0.4 * kb_ev_k  # eV
-    e_c = e_j / ej_ec_ratio  # eV
+    e_j_hz = 8.335e9  # ~8.3 GHz (0.4 K·kB)
+    e_c_hz = e_j_hz / ej_ec_ratio  # Hz
     
     # Create OCS instance
     ocs = OCS(
-        e_josephson=e_j,
-        e_charging=e_c,
-        temperature=0.02,  # K
-        normal_resistance=27e3  # Ω
+        e_j_hz=e_j_hz,
+        e_c_hz=e_c_hz,
+        temperature_k=0.02,  # 20 mK
+        r_n_ohm=27e3  # 27 kΩ
     )
     
     # Generate all plots
     figs = ocs.plot_all(
-        coupling_g=150e6,  # 150 MHz
-        resonator_freq=7.0e9,  # 7 GHz
+        coupling_g_hz=150e6,  # 150 MHz
+        resonator_freq_hz=7.0e9,  # 7 GHz
         num_levels=6
     )
     

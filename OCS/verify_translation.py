@@ -20,35 +20,35 @@ def verify_basic_calculation():
     print("=" * 70)
     
     # Constants
-    kb_ev_k = OCS.KB_EV_K
     planck_ev_s = OCS.PLANCK_EV_S
     
     # Parameters from MATLAB script
     ej_ec_ratio = 12
-    e_j = 0.4 * kb_ev_k  # eV
-    e_c = e_j / ej_ec_ratio  # eV
+    e_j_hz = 8.335e9  # ~8.3 GHz (equivalent to 0.4 K·kB)
+    e_c_hz = e_j_hz / ej_ec_ratio  # Hz
     
     print(f"\nInput Parameters:")
-    print(f"  E_J = {e_j / kb_ev_k:.3f} K·k_B")
-    print(f"  E_C = {e_c / kb_ev_k:.4f} K·k_B")
+    print(f"  E_J = {e_j_hz / 1e9:.3f} GHz")
+    print(f"  E_C = {e_c_hz / 1e9:.4f} GHz")
     print(f"  E_J/E_C = {ej_ec_ratio}")
     
     # Create OCS instance
     ocs = OCS(
-        e_josephson=e_j,
-        e_charging=e_c,
-        temperature=0.02,
-        normal_resistance=27e3
+        e_j_hz=e_j_hz,
+        e_c_hz=e_c_hz,
+        temperature_k=0.02,
+        r_n_ohm=27e3
     )
     
-    # Compute normal resistance from E_J
+    # Compute normal resistance from E_J (for verification)
+    e_j_ev = e_j_hz * planck_ev_s
     r_n_computed = (planck_ev_s * OCS.DELTA_AL / 
-                   (8 * OCS.ELECTRON_CHARGE * e_j))
+                   (8 * OCS.ELECTRON_CHARGE * e_j_ev))
     
     print(f"\nDerived Quantities:")
     print(f"  R_n = {r_n_computed / 1e3:.2f} kΩ")
-    print(f"  E_J = {e_j / planck_ev_s / 1e9:.3f} GHz")
-    print(f"  E_C = {e_c / planck_ev_s / 1e9:.4f} GHz")
+    print(f"  E_J = {e_j_hz / 1e9:.3f} GHz")
+    print(f"  E_C = {e_c_hz / 1e9:.4f} GHz")
     
     # Solve system
     offset_charges = np.linspace(0, 1, 500)
@@ -66,7 +66,7 @@ def verify_basic_calculation():
     print(f"  E_01 = {freq_odd[0, 1]:.3f} GHz")
     print(f"  E_02 = {freq_odd[0, 2]:.3f} GHz")
     print(f"  E_03 = {freq_odd[0, 3]:.3f} GHz")
-    print(f"  ΔE/E_C = {energy_diff[0] / e_c:.4f}")
+    print(f"  ΔE/E_C = {energy_diff[0] / ocs.e_c_ev:.4f}")
     
     # Find minimum frequencies
     fr1 = np.min(freq_odd[:, 1])
@@ -75,22 +75,22 @@ def verify_basic_calculation():
     print(f"  min(f_03) = {fr3:.3f} GHz")
     
     # Compute dispersive shifts
-    coupling_g = 150e6  # Hz
-    resonator_freq = 7.0e9  # Hz
+    coupling_g_hz = 150e6  # Hz
+    resonator_freq_hz = 7.0e9  # Hz
     
     # At u=0 (odd parity)
     matrix_elements, chi = ocs.compute_dispersive_matrix(
         offset_charge=0.5,
-        coupling_g=coupling_g,
-        resonator_freq=resonator_freq,
+        coupling_g_hz=coupling_g_hz,
+        resonator_freq_hz=resonator_freq_hz,
         num_levels=6
     )
     
     # At u=0.5 (even parity)
     matrix_elements_2, chi_2 = ocs.compute_dispersive_matrix(
         offset_charge=1.0,
-        coupling_g=coupling_g,
-        resonator_freq=resonator_freq,
+        coupling_g_hz=coupling_g_hz,
+        resonator_freq_hz=resonator_freq_hz,
         num_levels=6
     )
     
@@ -98,19 +98,19 @@ def verify_basic_calculation():
     
     # Anharmonicity and chi_resonator
     anharmonicity = (freq_odd[0, 2] - 2 * freq_odd[0, 1]) * 1e9  # Hz
-    chi_resonator = (coupling_g ** 2 * anharmonicity / 
-                    np.abs(resonator_freq - fr1 * 1e9) / 
-                    (np.abs(resonator_freq - fr1 * 1e9) + 
+    chi_resonator = (coupling_g_hz ** 2 * anharmonicity / 
+                    np.abs(resonator_freq_hz - fr1 * 1e9) / 
+                    (np.abs(resonator_freq_hz - fr1 * 1e9) + 
                      anharmonicity))
     
     print(f"\nDispersive Properties:")
-    print(f"  Resonator frequency = {resonator_freq / 1e9:.2f} GHz")
-    print(f"  Coupling g = {coupling_g / 1e6:.1f} MHz")
+    print(f"  Resonator frequency = {resonator_freq_hz / 1e9:.2f} GHz")
+    print(f"  Coupling g = {coupling_g_hz / 1e6:.1f} MHz")
     print(f"  Anharmonicity = {anharmonicity / 1e6:.2f} MHz")
     print(f"  χ (resonator state) = {chi_resonator / 1e6:.3f} MHz")
     print(f"  Δχ (parity) = {chi_parity / 1e6:.3f} MHz")
     print(f"  Resonator FWHM = "
-          f"{resonator_freq / 10000 / 1e6:.2f} MHz")
+          f"{resonator_freq_hz / 10000 / 1e6:.2f} MHz")
     
     # Matrix elements
     print(f"\nCharge Matrix Elements (|⟨j,o|n̂|0,o⟩| at u=0):")
@@ -138,10 +138,10 @@ def verify_hamiltonian_structure():
     print("-" * 70)
     
     kb_ev_k = OCS.KB_EV_K
-    e_j = 0.4 * kb_ev_k
-    e_c = e_j / 12
+    e_j_hz = 8.335e9
+    e_c_hz = e_j_hz / 12
     
-    ocs = OCS(e_j, e_c)
+    ocs = OCS(e_j_hz, e_c_hz)
     
     # Build small Hamiltonian for inspection
     u = 0.25
@@ -158,7 +158,7 @@ def verify_hamiltonian_structure():
     
     print(f"\nOff-diagonal (Josephson coupling):")
     print(f"  E_J/2 = {-h[0, 1] / kb_ev_k:.6f} K·k_B")
-    print(f"  (Should equal {e_j / 2 / kb_ev_k:.6f} K·k_B)")
+    print(f"  (Should equal {ocs.e_j_ev / 2 / kb_ev_k:.6f} K·k_B)")
     
     # Check Hermiticity
     is_hermitian = np.allclose(h, h.T.conj())
@@ -175,10 +175,10 @@ def verify_symmetries():
     print("-" * 70)
     
     kb_ev_k = OCS.KB_EV_K
-    e_j = 0.4 * kb_ev_k
-    e_c = e_j / 12
+    e_j_hz = 8.335e9
+    e_c_hz = e_j_hz / 12
     
-    ocs = OCS(e_j, e_c)
+    ocs = OCS(e_j_hz, e_c_hz)
     
     # Test symmetry: E(u) should equal E(1-u) for even parity
     u_vals = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
