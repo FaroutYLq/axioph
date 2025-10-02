@@ -3,7 +3,7 @@ Offset-Charge-Sensitive (OCS) Transmon Analysis
 
 This module implements simulation and analysis tools for OCS transmons,
 based on the physics described in:
-- Serniak et al., PRL (2019): https://arxiv.org/pdf/1903.00113
+- Serniak et al., PRA (2019): https://arxiv.org/pdf/1903.00113
 - Additional context from https://arxiv.org/pdf/2405.17192
 
 The OCS transmon is in the intermediate regime between Cooper-pair box 
@@ -15,6 +15,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import h, k, e, eV
 from scipy.linalg import eigh
+import yaml
+from pathlib import Path
 
 
 class OCS:
@@ -24,6 +26,9 @@ class OCS:
     This class simulates OCS transmons by diagonalizing the Cooper-pair
     box Hamiltonian and computing dispersive shifts for charge-parity
     readout.
+    
+    Material properties are loaded from materials.yaml, supporting
+    multiple superconductors (Al, Hf, Nb, TiN, etc.)
     """
     
     # Physical constants (in SI unless specified)
@@ -31,14 +36,65 @@ class OCS:
     KB_EV_K = k / eV  # Boltzmann constant in eV/K
     ELECTRON_CHARGE = e  # Elementary charge in Coulombs
     
-    # Aluminum material properties
-    DOS_AL = 1.72e10  # Density of states [1/(μm³·eV)]
-    FERMI_AL = 11.6  # Fermi level [eV]
-    TC_AL = 1.2  # Critical temperature [K] (AlMn: 0.1, Al: 1.2)
-    DELTA_AL = 1.89e-4  # Superconducting gap [eV]
+    # Materials database cache
+    _materials_db = None
+    _materials_path = Path(__file__).parent / "materials.yaml"
+    
+    @classmethod
+    def load_materials_database(cls):
+        """
+        Load materials database from YAML file
+        
+        Returns
+        -------
+        dict
+            Dictionary containing material properties
+        """
+        if cls._materials_db is None:
+            with open(cls._materials_path, 'r') as f:
+                cls._materials_db = yaml.safe_load(f)
+        return cls._materials_db
+    
+    @classmethod
+    def list_materials(cls):
+        """
+        List available materials in the database
+        
+        Returns
+        -------
+        list
+            List of available material names
+        """
+        db = cls.load_materials_database()
+        return list(db['materials'].keys())
+    
+    @classmethod
+    def get_material_properties(cls, material_name):
+        """
+        Get properties for a specific material
+        
+        Parameters
+        ----------
+        material_name : str
+            Name of the material (e.g., 'aluminum', 'hafnium')
+            
+        Returns
+        -------
+        dict
+            Material properties dictionary
+        """
+        db = cls.load_materials_database()
+        if material_name not in db['materials']:
+            available = ', '.join(cls.list_materials())
+            raise ValueError(
+                f"Material '{material_name}' not found. "
+                f"Available: {available}"
+            )
+        return db['materials'][material_name]['properties']
     
     def __init__(self, e_j_hz, e_c_hz, temperature_k=0.02,
-                 r_n_ohm=27e3, delta_l_hz=None, delta_r_hz=None):
+                 r_n_ohm=27e3, delta_l_hz=None, delta_r_hz=None,
+                 material='aluminum', **material_overrides):
         """
         Initialize OCS transmon simulator
         
@@ -53,9 +109,15 @@ class OCS:
         r_n_ohm : float, optional
             Normal state resistance [Ω], default 27 kΩ
         delta_l_hz : float, optional
-            Left superconducting gap [Hz], defaults to DELTA_AL
+            Left superconducting gap [Hz], defaults to material value
         delta_r_hz : float, optional
-            Right superconducting gap [Hz], defaults to DELTA_AL
+            Right superconducting gap [Hz], defaults to material value
+        material : str, optional
+            Material name from database, default 'aluminum'
+            Options: 'aluminum', 'hafnium', 'niobium', etc.
+        **material_overrides : dict
+            Override material properties (dos, fermi_level, tc, delta)
+            Values should be in SI/eV units as specified in YAML
         """
         # Store input parameters in their native units
         self.e_j_hz = e_j_hz
@@ -63,24 +125,38 @@ class OCS:
         self.temperature_k = temperature_k
         self.r_n_ohm = r_n_ohm
         
+        # Load material properties
+        self.material_name = material
+        mat_props = self.get_material_properties(material).copy()
+        
+        # Apply any manual overrides
+        mat_props.update(material_overrides)
+        
+        # Store material properties as instance variables
+        # Convert to float in case YAML parsed as string
+        self.dos = float(mat_props['dos'])  # [1/(μm³·eV)]
+        self.fermi_level = float(mat_props['fermi_level'])  # [eV]
+        self.tc = float(mat_props['tc'])  # [K]
+        self.delta_material = float(mat_props['delta'])  # [eV]
+        
         # Convert to eV for internal calculations
         self.e_j_ev = e_j_hz * self.PLANCK_EV_S
         self.e_c_ev = e_c_hz * self.PLANCK_EV_S
         
-        # Delta in eV (convert from Hz if provided, else use default)
+        # Delta in eV (convert from Hz if provided, else use material)
         if delta_l_hz is not None:
             self.delta_l_ev = delta_l_hz * self.PLANCK_EV_S
         else:
-            self.delta_l_ev = self.DELTA_AL
+            self.delta_l_ev = self.delta_material
             
         if delta_r_hz is not None:
             self.delta_r_ev = delta_r_hz * self.PLANCK_EV_S
         else:
-            self.delta_r_ev = self.DELTA_AL
+            self.delta_r_ev = self.delta_material
         
         # Computed quantities
         self.ej_ec_ratio = self.e_j_hz / self.e_c_hz
-        self.curly_n = (self.DOS_AL * 
+        self.curly_n = (self.dos * 
                        np.sqrt(2 * np.pi * self.delta_l_ev * 
                                self.KB_EV_K * self.temperature_k))
         
@@ -612,12 +688,14 @@ class OCS:
         
         print("=" * 60)
         print(f"OCS Transmon Parameters:")
+        print(f"Material: {self.material_name} (Tc = {self.tc:.3f} K)")
         print(f"Eⱼ = {self.e_j_ev / self.KB_EV_K:.3f} K·kᴮ = "
               f"{self.e_j_hz / 1e9:.3f} GHz")
         print(f"Eᴄ = {self.e_c_ev / self.KB_EV_K:.4f} K·kᴮ = "
               f"{self.e_c_hz / 1e9:.4f} GHz")
         print(f"Eⱼ/Eᴄ = {self.ej_ec_ratio:.2f}")
         print(f"Rₙ = {self.r_n_ohm / 1e3:.1f} kΩ")
+        print(f"Δ = {self.delta_material / self.KB_EV_K * 1e3:.3f} mK·kᴮ")
         print(f"Resonator frequency = {resonator_freq_hz / 1e9:.2f} GHz")
         print(f"Coupling g = {coupling_g_hz / 1e6:.1f} MHz")
         print(f"FWHM = {resonator_freq_hz / 10000 / 1e6:.2f} MHz")

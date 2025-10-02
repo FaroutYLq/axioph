@@ -42,7 +42,8 @@ def verify_basic_calculation():
     
     # Compute normal resistance from E_J (for verification)
     e_j_ev = e_j_hz * planck_ev_s
-    r_n_computed = (planck_ev_s * OCS.DELTA_AL / 
+    delta_al = 1.89e-4  # Al superconducting gap [eV]
+    r_n_computed = (planck_ev_s * delta_al / 
                    (8 * OCS.ELECTRON_CHARGE * e_j_ev))
     
     print(f"\nDerived Quantities:")
