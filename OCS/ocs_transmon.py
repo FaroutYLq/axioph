@@ -94,8 +94,9 @@ class OCS:
             )
         return db['materials'][material_name]['properties']
     
-    def __init__(self, e_j_hz, e_c_hz, temperature_k=0.02,
-                 r_n_ohm=27e3, delta_l_hz=None, delta_r_hz=None,
+    def __init__(self, 
+                 e_j_hz, e_c_hz, temperature_k=0.02, r_n_ohm=27e3, 
+                 delta_l_hz=None, delta_r_hz=None,
                  material='aluminum', **material_overrides):
         """
         Initialize OCS transmon simulator
@@ -378,7 +379,8 @@ class OCS:
         
         return matrix_elements, chi_ip
     
-    def plot_energy_levels(self, offset_charges=None, num_levels=5, freq_resonator_hz=None,
+    def plot_energy_levels(self, offset_charges=None, num_levels=5, 
+                          freq_resonator_hz=None, coupling_g_hz=None,
                           figsize=(4, 3)):
         """
         Plot energy level diagram vs offset charge
@@ -443,11 +445,24 @@ class OCS:
                        label=f'|{j},o⟩')
             
             if freq_resonator_hz is not None:
-                ax.axhline(freq_resonator_hz / 1e9, color='black', linestyle=':')
+                ax.axhline(freq_resonator_hz / 1e9, 
+                          color='black', linestyle=':')
 
+            ax.set_xlim([0, 1])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$f_{0j}$ [GHz]')
-            ax.set_title(f'$E_J / E_C = {self.ej_ec_ratio:.1f}$')
+            
+            # Construct comprehensive title
+            title_parts = [
+                f'$\\xi={self.ej_ec_ratio:.1f}$',
+                f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
+                f'$E_C={self.e_c_hz/1e9:.3f}$ GHz'
+            ]
+            if coupling_g_hz is not None:
+                title_parts.append(f'$g={coupling_g_hz/1e6:.0f}$ MHz')
+            title_parts.append(f'$T={self.temperature_k*1e3:.0f}$ mK')
+            ax.set_title(', '.join(title_parts), fontsize=7)
+            
             ax.minorticks_on()
             if num_levels <= 4:
                 ax.legend(loc="best")
@@ -506,8 +521,20 @@ class OCS:
                            linewidth=2, color=color, label=f'j={j}')
             
             ax.set_ylim([1e-5, 2e0])
+            ax.set_xlim([0, 1])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
-            ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|$')
+            ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|^2$')
+            
+            # Construct comprehensive title
+            title_parts = [
+                f'$\\xi={self.ej_ec_ratio:.1f}$',
+                f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
+                f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
+                f'$g={coupling_g_hz/1e6:.0f}$ MHz',
+                f'$T={self.temperature_k*1e3:.0f}$ mK'
+            ]
+            ax.set_title(', '.join(title_parts), fontsize=7)
+            
             ax.minorticks_on()
             ax.legend(loc="best")
             ax.grid(alpha=0.3, which='both')
@@ -568,6 +595,17 @@ class OCS:
             ax.set_xlim([0, 1])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
+            
+            # Construct comprehensive title
+            title_parts = [
+                f'$\\xi={self.ej_ec_ratio:.1f}$',
+                f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
+                f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
+                f'$g={coupling_g_hz/1e6:.0f}$ MHz',
+                f'$T={self.temperature_k*1e3:.0f}$ mK'
+            ]
+            ax.set_title(', '.join(title_parts), fontsize=7)
+            
             ax.minorticks_on()
             ax.legend(loc="best")
             ax.grid(alpha=0.3)
@@ -628,6 +666,17 @@ class OCS:
                        linewidth=2)
             ax.set_xlabel('Resonator Frequency [GHz]')
             ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]')
+            
+            # Construct comprehensive title
+            title_parts = [
+                f'$\\xi={self.ej_ec_ratio:.1f}$',
+                f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
+                f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
+                f'$g={coupling_g_hz/1e6:.0f}$ MHz',
+                f'$T={self.temperature_k*1e3:.0f}$ mK'
+            ]
+            ax.set_title(', '.join(title_parts), fontsize=7)
+            
             ax.minorticks_on()
             ax.legend(loc="best")
             ax.grid(alpha=0.3, which='both')
@@ -703,7 +752,9 @@ class OCS:
         
         # Figure 1: Energy levels
         print("\n[1/4] Plotting energy levels...")
-        fig1, _ = self.plot_energy_levels(offset_charges, num_levels, resonator_freq_hz)
+        fig1, _ = self.plot_energy_levels(
+            offset_charges, num_levels, resonator_freq_hz, coupling_g_hz
+        )
         figs.append(fig1)
         
         # Figure 2: Matrix elements
