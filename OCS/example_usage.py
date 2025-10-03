@@ -25,8 +25,8 @@ def example_1_basic_usage():
     print("Example 1: Basic OCS Transmon Simulation (WashU parameters)")
     print("=" * 70)
     
-    # WashU parameters from MATLAB script (E_J/E_C = 12)
-    ej_ec_ratio = 12
+    # WashU parameters from MATLAB script (E_J/E_C = 15)
+    ej_ec_ratio = 15
     e_j_hz = 8.335e9  # ~8.3 GHz (equivalent to 0.4 K·kB)
     e_c_hz = e_j_hz / ej_ec_ratio  # Hz
     
@@ -34,7 +34,7 @@ def example_1_basic_usage():
         e_j_hz=e_j_hz,
         e_c_hz=e_c_hz,
         temperature_k=0.02,  # 20 mK
-        r_n_ohm=27e3  # 27 kΩ
+        r_n_ohm=16.5e3  # 16.5 kΩ
     )
     
     # Generate all plots

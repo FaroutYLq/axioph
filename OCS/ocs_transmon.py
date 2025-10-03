@@ -219,7 +219,7 @@ class OCS:
         n_dim = 2 * charge_cutoff + 1
         h = np.zeros((n_dim, n_dim))
         
-        # Charge states from -n to +n
+        # Charge states from -charge_cutoff to charge_cutoff
         charge_states = np.arange(-charge_cutoff, charge_cutoff + 1)
         
         # Diagonal: charging energy term 4Eᴄ(n - nᵍ)²
@@ -616,6 +616,7 @@ class OCS:
     def plot_parity_shift_vs_frequency(self, freq_range_hz=None, 
                                       coupling_g_hz=150e6, 
                                       num_levels=6,
+                                      freq_min_hz=5.0e9,
                                       figsize=(4, 3)):
         """
         Plot parity-dependent dispersive shift vs resonator frequency
@@ -641,7 +642,7 @@ class OCS:
         # Auto-determine frequency range if not provided
         if freq_range_hz is None:
             _, energies_odd, _ = self.solve_system([0, 0.5], 4)
-            freq_min = 7.0e9  # Start at 7 GHz
+            freq_min = freq_min_hz  # Start at 7 GHz
             freq_odd_3 = ((energies_odd[0, 3] - energies_odd[0, 0]) / 
                          self.PLANCK_EV_S)  # f_03
             freq_max = freq_odd_3 + 0.2e9  # Add 200 MHz
@@ -757,6 +758,7 @@ class OCS:
             offset_charges, num_levels, resonator_freq_hz, coupling_g_hz
         )
         figs.append(fig1)
+        fig1.show()
         
         # Figure 2: Matrix elements
         print("[2/4] Plotting matrix elements...")
@@ -764,13 +766,15 @@ class OCS:
             None, coupling_g_hz, resonator_freq_hz, num_levels
         )
         figs.append(fig2)
-        
+        fig2.show()
+            
         # Figure 3: Dispersive shift
         print("[3/4] Plotting dispersive shift...")
         fig3, _ = self.plot_dispersive_shift(
             None, coupling_g_hz, resonator_freq_hz, num_levels
         )
         figs.append(fig3)
+        fig3.show()
         
         # Figure 4: Parity shift vs frequency
         print("[4/4] Plotting parity shift vs frequency...")
@@ -778,6 +782,7 @@ class OCS:
             None, coupling_g_hz, num_levels
         )
         figs.append(fig4)
+        fig4.show()
         
         print("\nAll plots complete!")
         return figs
