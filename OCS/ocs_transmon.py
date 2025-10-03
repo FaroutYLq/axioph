@@ -275,11 +275,11 @@ class OCS:
         Returns
         -------
         energies_even : ndarray
-            Even parity energies [eV], shape (len(u), num_levels)
+            Even parity energies [eV], shape (len(n_g), num_levels)
         energies_odd : ndarray
-            Odd parity energies [eV], shape (len(u), num_levels)
+            Odd parity energies [eV], shape (len(n_g), num_levels)
         energy_diff : ndarray
-            Parity splitting energy [eV], shape (len(u),)
+            Parity splitting energy [eV], shape (len(n_g),)
         """
         offset_charges = np.atleast_1d(offset_charges)
         num_points = len(offset_charges)
@@ -287,17 +287,14 @@ class OCS:
         energies_even = np.zeros((num_points, num_levels))
         energies_odd = np.zeros((num_points, num_levels))
         
-        # Small offset to avoid exact degeneracy
-        epsilon = 1e-4
-        
-        for i, u in enumerate(offset_charges):
+        for i, n_g in enumerate(offset_charges):
             # Even parity: integer charge
-            evals_even, _ = self.solve_eigensystem(u + epsilon, 
+            evals_even, _ = self.solve_eigensystem(n_g, 
                                                    charge_cutoff)
             energies_even[i, :] = evals_even[:num_levels]
             
             # Odd parity: half-integer charge
-            evals_odd, _ = self.solve_eigensystem(u + 0.5 + epsilon, 
+            evals_odd, _ = self.solve_eigensystem(n_g + 0.5, 
                                                   charge_cutoff)
             energies_odd[i, :] = evals_odd[:num_levels]
         
@@ -308,7 +305,7 @@ class OCS:
         return energies_even, energies_odd, energy_diff
     
     def compute_dispersive_matrix(self, offset_charge, coupling_g_hz, 
-                                  resonator_freq_hz, num_levels=6, 
+                                  resonator_freq_hz, num_levels=6, parity='odd',
                                   charge_cutoff=30):
         """
         Compute dispersive shift and matrix elements
@@ -326,6 +323,8 @@ class OCS:
             Resonator frequency [Hz]
         num_levels : int, optional
             Number of levels for matrix elements, default 6
+        parity : str, optional
+            Parity of the qubit, default 'odd'. Options: 'odd', 'even'
         charge_cutoff : int, optional
             Charge basis cutoff (higher for accuracy), default 30
             
@@ -336,15 +335,21 @@ class OCS:
         chi_ip : ndarray
             Dispersive shift χᵢ,ₚ [Hz], shape (num_levels,)
         """
+        if parity == 'odd':
+            offset_charge += 0.5
+        elif parity == 'even':
+            pass
+        else:
+            raise ValueError(f"Invalid parity: {parity}")
+        
         # Solve eigensystem
         eigenvalues, eigenvectors = self.solve_eigensystem(
             offset_charge, charge_cutoff
         )
         
         # Build number operator n̂ = ∑ₙ (n - nᵍ)|n⟩⟨n|
-        n_dim = 2 * charge_cutoff + 1
         charge_states = np.arange(-charge_cutoff, charge_cutoff + 1)
-        number_operator = np.diag(charge_states - offset_charge)
+        number_operator = np.diag(charge_states)
         
         # Transform to energy eigenbasis
         total_states = len(eigenvalues)
@@ -412,11 +417,12 @@ class OCS:
         
         # Convert to frequencies (GHz) relative to ground state
         freq_even = ((energies_even - energies_even[:, [0]]) / 
-                    self.PLANCK_EV_S / 1e9)
+                    self.PLANCK_EV_S / 1e9) # GHz
         freq_odd = ((energies_odd - energies_odd[:, [0]]) / 
-                   self.PLANCK_EV_S / 1e9)
+                   self.PLANCK_EV_S / 1e9) # GHz
         
         # Print key frequencies
+        print("At offset charge 0:")
         print(f"Eⱼ/Eᴄ = {self.ej_ec_ratio:.2f}")
         print(f"E₀₁ = {freq_odd[0, 1]:.3f} GHz")
         print(f"E₀₂ = {freq_odd[0, 2]:.3f} GHz")
@@ -450,7 +456,7 @@ class OCS:
 
             ax.set_xlim([0, 1])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
-            ax.set_ylabel(r'$f_{0j}$ [GHz]')
+            ax.set_ylabel(r'$f_{0i}$ [GHz]')
             
             # Construct comprehensive title
             title_parts = [
@@ -460,7 +466,7 @@ class OCS:
             ]
             if coupling_g_hz is not None:
                 title_parts.append(f'$g={coupling_g_hz/1e6:.0f}$ MHz')
-            title_parts.append(f'$T={self.temperature_k*1e3:.0f}$ mK')
+            #title_parts.append(f'$T={self.temperature_k*1e3:.0f}$ mK')
             ax.set_title(', '.join(title_parts), fontsize=7)
             
             ax.minorticks_on()
@@ -472,7 +478,8 @@ class OCS:
     
     def plot_matrix_elements(self, offset_charges=None, 
                             coupling_g_hz=150e6, 
-                            resonator_freq_hz=7.0e9, num_levels=6, 
+                            resonator_freq_hz=7.0e9, num_levels=6, parity='odd',
+                            energy_level=0,
                             figsize=(4, 3)):
         """
         Plot charge matrix elements vs offset charge
@@ -489,6 +496,10 @@ class OCS:
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
+        parity : str, optional
+            Parity of the qubit, default 'odd'. Options: 'odd', 'even'
+        energy_level : int, optional
+            Energy level to plot, default 0
         figsize : tuple, optional
             Figure size, default (4, 3)
             
@@ -502,28 +513,33 @@ class OCS:
         num_points = len(offset_charges)
         matrix_elems = np.zeros((num_points, num_levels))
         
-        for i, u in enumerate(offset_charges):
+        for i, n_g in enumerate(offset_charges):
             mat, _ = self.compute_dispersive_matrix(
-                u + 0.5, coupling_g_hz, resonator_freq_hz, num_levels
+                n_g, coupling_g_hz, resonator_freq_hz, num_levels, parity=parity
             )
-            matrix_elems[i, :] = mat[0, :]  # From ground state
+            matrix_elems[i, :] = mat[energy_level, :]  # From ground state
         
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
             # Get colormap for odd parity
-            cmap_odd = cm.get_cmap('Blues')
+            if parity == 'odd':
+                cmap = cm.get_cmap('Blues')
+            elif parity == 'even':
+                cmap = cm.get_cmap('Reds')
+            else:
+                raise ValueError(f"Invalid parity: {parity}")
             
             # Plot only transitions (j>0)
             for j in range(1, num_levels):
-                color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 1, 1))
+                color = cmap(0.3 + 0.7 * j / max(num_levels - 1, 1))
                 ax.semilogy(offset_charges, matrix_elems[:, j], 
                            linewidth=2, color=color, label=f'j={j}')
             
             ax.set_ylim([1e-5, 2e0])
             ax.set_xlim([0, 1])
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
-            ax.set_ylabel(r'$|\langle j,o|\hat{n}|0,o\rangle|^2$')
+            ax.set_ylabel(rf'$|\langle j,{parity[0]}|\hat{{n}}|{energy_level},{parity[0]}\rangle|^2$')
             
             # Construct comprehensive title
             title_parts = [
@@ -531,7 +547,7 @@ class OCS:
                 f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
                 f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
                 f'$g={coupling_g_hz/1e6:.0f}$ MHz',
-                f'$T={self.temperature_k*1e3:.0f}$ mK'
+                #f'$T={self.temperature_k*1e3:.0f}$ mK'
             ]
             ax.set_title(', '.join(title_parts), fontsize=7)
             
@@ -544,7 +560,7 @@ class OCS:
     def plot_dispersive_shift(self, offset_charges=None, 
                              coupling_g_hz=150e6, 
                              resonator_freq_hz=7.0e9,
-                             num_levels=6, figsize=(4, 3)):
+                             num_levels=6, parity='odd', figsize=(4, 3)):
         """
         Plot dispersive shift χ vs offset charge
         
@@ -561,6 +577,8 @@ class OCS:
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
+        parity : str, optional
+            Parity of the qubit, default 'odd'. Options: 'odd', 'even'
         figsize : tuple, optional
             Figure size, default (4, 3)
             
@@ -574,9 +592,10 @@ class OCS:
         num_points = len(offset_charges)
         chi_vals = np.zeros((num_points, num_levels))
         
-        for i, u in enumerate(offset_charges):
+        for i, n_g in enumerate(offset_charges):
             _, chi_ip = self.compute_dispersive_matrix(
-                u + 0.5, coupling_g_hz, resonator_freq_hz, num_levels
+                n_g, coupling_g_hz, resonator_freq_hz, num_levels, 
+                parity=parity
             )
             chi_vals[i, :] = chi_ip
         
@@ -584,11 +603,16 @@ class OCS:
             fig, ax = plt.subplots(figsize=figsize)
             
             # Get colormap for odd parity
-            cmap_odd = cm.get_cmap('Blues')
+            if parity == 'odd':
+                cmap = cm.get_cmap('Blues')
+            elif parity == 'even':
+                cmap = cm.get_cmap('Reds')
+            else:
+                raise ValueError(f"Invalid parity: {parity}")
             
             # Plot full range showing even and odd parity behavior
             for j in range(num_levels-2):
-                color = cmap_odd(0.3 + 0.7 * j / max(num_levels - 3, 1))
+                color = cmap(0.3 + 0.7 * j / max(num_levels - 3, 1))
                 ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
                        linewidth=2, color=color, label=f'|{j}⟩')
             
@@ -603,7 +627,7 @@ class OCS:
                 f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
                 f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
                 f'$g={coupling_g_hz/1e6:.0f}$ MHz',
-                f'$T={self.temperature_k*1e3:.0f}$ mK'
+                #f'$T={self.temperature_k*1e3:.0f}$ mK'
             ]
             ax.set_title(', '.join(title_parts), fontsize=7)
             
@@ -675,7 +699,7 @@ class OCS:
                 f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
                 f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
                 f'$g={coupling_g_hz/1e6:.0f}$ MHz',
-                f'$T={self.temperature_k*1e3:.0f}$ mK'
+                #f'$T={self.temperature_k*1e3:.0f}$ mK'
             ]
             ax.set_title(', '.join(title_parts), fontsize=7)
             
