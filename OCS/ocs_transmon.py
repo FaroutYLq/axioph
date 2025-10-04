@@ -560,12 +560,13 @@ class OCS:
     def plot_dispersive_shift(self, offset_charges=None, 
                              coupling_g_hz=150e6, 
                              resonator_freq_hz=7.0e9,
-                             num_levels=6, parity='odd', figsize=(4, 3)):
+                             num_levels=6, figsize=(4, 3),
+                             ylim=[-10, 10]):
         """
-        Plot dispersive shift χ vs offset charge
+        Plot dispersive shift χ vs offset charge for both parities
         
         Shows charge-parity-dependent shift for ground and first 
-        excited states.
+        excited states for both odd (blue) and even (red) parities.
         
         Parameters
         ----------
@@ -577,11 +578,10 @@ class OCS:
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
-        parity : str, optional
-            Parity of the qubit, default 'odd'. Options: 'odd', 'even'
         figsize : tuple, optional
             Figure size, default (4, 3)
-            
+        ylim : tuple, optional
+            Y-axis limits, default [-10, 10] MHz
         Returns
         -------
         fig, ax : matplotlib figure and axes
@@ -590,34 +590,45 @@ class OCS:
             offset_charges = np.linspace(0, 1, 500)
         
         num_points = len(offset_charges)
-        chi_vals = np.zeros((num_points, num_levels))
+        chi_vals_odd = np.zeros((num_points, num_levels))
+        chi_vals_even = np.zeros((num_points, num_levels))
         
+        # Compute chi for both parities
         for i, n_g in enumerate(offset_charges):
-            _, chi_ip = self.compute_dispersive_matrix(
+            _, chi_odd = self.compute_dispersive_matrix(
                 n_g, coupling_g_hz, resonator_freq_hz, num_levels, 
-                parity=parity
+                parity='odd'
             )
-            chi_vals[i, :] = chi_ip
+            _, chi_even = self.compute_dispersive_matrix(
+                n_g, coupling_g_hz, resonator_freq_hz, num_levels, 
+                parity='even'
+            )
+            chi_vals_odd[i, :] = chi_odd
+            chi_vals_even[i, :] = chi_even
         
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
-            # Get colormap for odd parity
-            if parity == 'odd':
-                cmap = cm.get_cmap('Blues')
-            elif parity == 'even':
-                cmap = cm.get_cmap('Reds')
-            else:
-                raise ValueError(f"Invalid parity: {parity}")
+            # Get colormaps for both parities
+            cmap_odd = cm.get_cmap('Blues')
+            cmap_even = cm.get_cmap('Reds')
             
-            # Plot full range showing even and odd parity behavior
+            # Plot both parities
             for j in range(num_levels-2):
-                color = cmap(0.3 + 0.7 * j / max(num_levels - 3, 1))
-                ax.plot(offset_charges, chi_vals[:, j] / 1e6, 
-                       linewidth=2, color=color, label=f'|{j}⟩')
+                # Odd parity (blue)
+                color_odd = cmap_odd(0.3 + 0.7 * j / max(num_levels - 3, 1))
+                ax.plot(offset_charges, chi_vals_odd[:, j] / 1e6, 
+                       linewidth=2, color=color_odd, 
+                       label=f'|{j},o⟩')
+                
+                # Even parity (red)
+                color_even = cmap_even(0.3 + 0.7 * j / max(num_levels-3, 1))
+                ax.plot(offset_charges, chi_vals_even[:, j] / 1e6, 
+                       linewidth=2, color=color_even, 
+                       label=f'|{j},e⟩')
             
             ax.set_xlim([0, 1])
-            ax.set_ylim([-10, 10])
+            ax.set_ylim(ylim)
             ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
             ax.set_ylabel(r'$\chi_{i,p}$ [MHz]')
             
@@ -632,7 +643,7 @@ class OCS:
             ax.set_title(', '.join(title_parts), fontsize=7)
             
             ax.minorticks_on()
-            ax.legend(loc="best")
+            ax.legend(loc="best", ncol=2, fontsize=6)
             ax.grid(alpha=0.3)
         
         return fig, ax
@@ -640,13 +651,14 @@ class OCS:
     def plot_parity_shift_vs_frequency(self, freq_range_hz=None, 
                                       coupling_g_hz=150e6, 
                                       num_levels=6,
-                                      freq_min_hz=5.0e9,
+                                      freq_min_hz=1.0e9,
+                                      offset_charges=[0.5],
                                       figsize=(4, 3)):
         """
         Plot parity-dependent dispersive shift vs resonator frequency
         
-        Compares χ₀ at two different offset charges to show maximum
-        parity contrast.
+        Plots the difference between odd and even parity chi values
+        for multiple offset charges.
         
         Parameters
         ----------
@@ -656,6 +668,10 @@ class OCS:
             Coupling strength [Hz], default 150 MHz
         num_levels : int, optional
             Number of levels, default 6
+        freq_min_hz : float, optional
+            Minimum frequency for range, default 1 GHz
+        offset_charges : array_like, optional
+            Offset charge values to plot, default [0.5]
         figsize : tuple, optional
             Figure size, default (4, 3)
             
@@ -666,32 +682,157 @@ class OCS:
         # Auto-determine frequency range if not provided
         if freq_range_hz is None:
             _, energies_odd, _ = self.solve_system([0, 0.5], 4)
-            freq_min = freq_min_hz  # Start at 7 GHz
+            freq_min = freq_min_hz
             freq_odd_3 = ((energies_odd[0, 3] - energies_odd[0, 0]) / 
                          self.PLANCK_EV_S)  # f_03
             freq_max = freq_odd_3 + 0.2e9  # Add 200 MHz
-            freq_range_hz = np.arange(freq_min, freq_max, 1e6)
+            freq_range_hz = np.linspace(freq_min, freq_max, 500)
         
-        chi_diff = np.zeros(len(freq_range_hz))
+        # Calculate f10 for axvspan
+        _, energies, _ = self.solve_system([0], num_levels)
+        freq_10 = ((energies[0, 1] - energies[0, 0]) / 
+                  self.PLANCK_EV_S)
         
-        for i, f_r in enumerate(freq_range_hz):
-            # Chi at offset charge 0
-            _, chi_ip_1 = self.compute_dispersive_matrix(
-                0.5, coupling_g_hz, f_r, num_levels
-            )
-            # Chi at offset charge 0.5
-            _, chi_ip_2 = self.compute_dispersive_matrix(
-                1.0, coupling_g_hz, f_r, num_levels
-            )
-            chi_diff[i] = chi_ip_1[0] - chi_ip_2[0]
+        # Store chi_diff for each offset charge
+        chi_diffs = np.zeros((len(offset_charges), len(freq_range_hz)))
+        
+        for idx, n_g in enumerate(offset_charges):
+            for i, f_r in enumerate(freq_range_hz):
+                # Chi for odd parity
+                _, chi_odd = self.compute_dispersive_matrix(
+                    n_g, coupling_g_hz, f_r, num_levels, parity='odd'
+                )
+                # Chi for even parity
+                _, chi_even = self.compute_dispersive_matrix(
+                    n_g, coupling_g_hz, f_r, num_levels, parity='even'
+                )
+                chi_diffs[idx, i] = chi_odd[0] - chi_even[0]
         
         with plt.style.context(self._style_path):
             fig, ax = plt.subplots(figsize=figsize)
             
-            ax.semilogy(freq_range_hz / 1e9, np.abs(chi_diff) / 1e6, 
-                       linewidth=2)
-            ax.set_xlabel('Resonator Frequency [GHz]')
-            ax.set_ylabel(r'$|\Delta\chi_0|$ [MHz]')
+            # Mark f10 region with axvspan
+            ax.axvspan((freq_10 - 0.1e9) / 1e9, (freq_10 + 0.1e9) / 1e9,
+                      alpha=0.2, color='gray', label=r'$f_{10}$', lw=0)
+            
+            # Get colormap
+            cmap = cm.get_cmap('magma')
+            
+            # Plot curves for each offset charge
+            for idx, n_g in enumerate(offset_charges):
+                color = cmap(idx / max(len(offset_charges) - 1, 1))
+                ax.semilogy(freq_range_hz / 1e9, 
+                           np.abs(chi_diffs[idx, :]) / 1e6, 
+                           linewidth=2, color=color, 
+                           label=f'$n_g={n_g:.2f}$')
+            
+            ax.set_xlabel('Readout Frequency [GHz]')
+            ax.set_ylabel(r'$|\Delta\chi_{0, o} - \Delta\chi_{0, e}|$ [MHz]')
+            
+            # Construct comprehensive title
+            title_parts = [
+                f'$\\xi={self.ej_ec_ratio:.1f}$',
+                f'$E_J={self.e_j_hz/1e9:.2f}$ GHz',
+                f'$E_C={self.e_c_hz/1e9:.3f}$ GHz',
+                f'$g={coupling_g_hz/1e6:.0f}$ MHz',
+                #f'$T={self.temperature_k*1e3:.0f}$ mK'
+            ]
+            ax.set_title(', '.join(title_parts), fontsize=7)
+            
+            ax.set_ylim(1e-3)
+            ax.minorticks_on()
+            ax.legend(loc="best", fontsize=7)
+            ax.grid(alpha=0.3, which='both')
+        
+        # Print summary
+        freq_02 = ((energies[0, 2] - energies[0, 0]) / 
+                  self.PLANCK_EV_S)
+        anharmonicity = freq_02 - 2 * freq_10
+        
+        # Chi at resonator for qubit state readout (simple estimate)
+        if hasattr(self, '_resonator_freq_hz'):
+            f_r_use = self._resonator_freq_hz
+        else:
+            f_r_use = 7.0e9
+        chi_resonator = (coupling_g_hz ** 2 * anharmonicity / 
+                        np.abs(f_r_use - freq_10) / 
+                        (np.abs(f_r_use - freq_10) + anharmonicity))
+        
+        print(f"\nf_10: {freq_10 / 1e9:.3f} GHz")
+        print(f"Resonator frequency: {f_r_use / 1e9:.2f} GHz")
+        print(f"χ (resonator state shift): {chi_resonator / 1e6:.3f} MHz")
+        
+        return fig, ax
+    
+    def plot_parity_shift_vs_ng(self, offset_charges=None, 
+                                coupling_g_hz=150e6, 
+                                num_levels=6,
+                                resonator_freqs=[7.0e9],
+                                figsize=(4, 3)):
+        """
+        Plot parity-dependent dispersive shift vs offset charge
+        
+        Plots the difference between odd and even parity chi values
+        as a function of offset charge for multiple resonator frequencies.
+        
+        Parameters
+        ----------
+        offset_charges : array_like, optional
+            Offset charge values from 0 to 1, default linspace(0, 1, 500)
+        coupling_g_hz : float, optional
+            Coupling strength [Hz], default 150 MHz
+        num_levels : int, optional
+            Number of levels, default 6
+        resonator_freqs : array_like, optional
+            Resonator frequencies [Hz] to plot, default [7.0e9]
+        figsize : tuple, optional
+            Figure size, default (4, 3)
+            
+        Returns
+        -------
+        fig, ax : matplotlib figure and axes
+        """
+        if offset_charges is None:
+            offset_charges = np.linspace(0, 1, 500)
+        
+        # Calculate f10 for reference
+        _, energies, _ = self.solve_system([0], num_levels)
+        freq_10 = ((energies[0, 1] - energies[0, 0]) / 
+                  self.PLANCK_EV_S)
+        
+        # Store chi_diff for each resonator frequency
+        chi_diffs = np.zeros((len(resonator_freqs), len(offset_charges)))
+        
+        for idx, f_r in enumerate(resonator_freqs):
+            for i, n_g in enumerate(offset_charges):
+                # Chi for odd parity
+                _, chi_odd = self.compute_dispersive_matrix(
+                    n_g, coupling_g_hz, f_r, num_levels, parity='odd'
+                )
+                # Chi for even parity
+                _, chi_even = self.compute_dispersive_matrix(
+                    n_g, coupling_g_hz, f_r, num_levels, parity='even'
+                )
+                chi_diffs[idx, i] = chi_odd[0] - chi_even[0]
+        
+        with plt.style.context(self._style_path):
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Get colormap
+            cmap = cm.get_cmap('magma')
+            
+            # Plot curves for each resonator frequency
+            for idx, f_r in enumerate(resonator_freqs):
+                color = cmap(idx / max(len(resonator_freqs) - 1, 1))
+                ax.semilogy(offset_charges, 
+                           np.abs(chi_diffs[idx, :]) / 1e6, 
+                           linewidth=2, color=color, 
+                           label=f'$f_r={f_r/1e9:.1f}$ GHz')
+            
+            ax.set_xlim([0, 1])
+            ax.set_ylim(1e-3)
+            ax.set_xlabel(r'Offset Charge [$C_g V_g / 2e$]')
+            ax.set_ylabel(r'$|\Delta\chi_{0, o} - \Delta\chi_{0, e}|$ [MHz]')
             
             # Construct comprehensive title
             title_parts = [
@@ -704,29 +845,11 @@ class OCS:
             ax.set_title(', '.join(title_parts), fontsize=7)
             
             ax.minorticks_on()
-            ax.legend(loc="best")
+            ax.legend(loc="best", fontsize=7)
             ax.grid(alpha=0.3, which='both')
         
         # Print summary
-        _, energies_odd, _ = self.solve_system([0], 4)
-        freq_01 = ((energies_odd[0, 1] - energies_odd[0, 0]) / 
-                  self.PLANCK_EV_S)
-        freq_02 = ((energies_odd[0, 2] - energies_odd[0, 0]) / 
-                  self.PLANCK_EV_S)
-        anharmonicity = freq_02 - 2 * freq_01
-        
-        # Chi at resonator for qubit state readout (simple estimate)
-        if hasattr(self, '_resonator_freq_hz'):
-            f_r_use = self._resonator_freq_hz
-        else:
-            f_r_use = 7.0e9
-        chi_resonator = (coupling_g_hz ** 2 * anharmonicity / 
-                        np.abs(f_r_use - freq_01) / 
-                        (np.abs(f_r_use - freq_01) + anharmonicity))
-        
-        print(f"\nResonator frequency: {f_r_use / 1e9:.2f} GHz")
-        print(f"χ (resonator state shift): {chi_resonator / 1e6:.3f} MHz")
-        print(f"Δχ (parity shift): {chi_diff[0] / 1e6:.3f} MHz")
+        print(f"\nf_10: {freq_10 / 1e9:.3f} GHz")
         
         return fig, ax
     
