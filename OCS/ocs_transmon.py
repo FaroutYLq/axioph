@@ -305,7 +305,7 @@ class OCS:
         return energies_even, energies_odd, energy_diff
     
     def compute_dispersive_matrix(self, offset_charge, coupling_g_hz, 
-                                  resonator_freq_hz, num_levels=6, parity='odd',
+                                  readout_freq_hz, num_levels=6, parity='odd',
                                   charge_cutoff=30):
         """
         Compute dispersive shift and matrix elements
@@ -319,7 +319,7 @@ class OCS:
             Dimensionless offset charge nᵍ
         coupling_g_hz : float
             Transmon-resonator coupling strength [Hz]
-        resonator_freq_hz : float
+        readout_freq_hz : float
             Resonator frequency [Hz]
         num_levels : int, optional
             Number of levels for matrix elements, default 6
@@ -376,7 +376,7 @@ class OCS:
                     
                     # Dispersive shift contribution
                     chi_contrib = (2.0 * omega_ij * mat_elem_sq / 
-                                  (omega_ij ** 2 - resonator_freq_hz ** 2))
+                                  (omega_ij ** 2 - readout_freq_hz ** 2))
                     chi_ip[i] += chi_contrib
         
         # Scale by coupling strength squared
@@ -478,7 +478,7 @@ class OCS:
     
     def plot_matrix_elements(self, offset_charges=None, 
                             coupling_g_hz=150e6, 
-                            resonator_freq_hz=7.0e9, num_levels=6, parity='odd',
+                            readout_freq_hz=7.0e9, num_levels=6, parity='odd',
                             energy_level=0,
                             figsize=(4, 3)):
         """
@@ -492,7 +492,7 @@ class OCS:
             Offset charge values, default linspace(0, 1, 500)
         coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq_hz : float, optional
+        readout_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -515,7 +515,7 @@ class OCS:
         
         for i, n_g in enumerate(offset_charges):
             mat, _ = self.compute_dispersive_matrix(
-                n_g, coupling_g_hz, resonator_freq_hz, num_levels, parity=parity
+                n_g, coupling_g_hz, readout_freq_hz, num_levels, parity=parity
             )
             matrix_elems[i, :] = mat[energy_level, :]  # From ground state
         
@@ -559,7 +559,7 @@ class OCS:
     
     def plot_dispersive_shift(self, offset_charges=None, 
                              coupling_g_hz=150e6, 
-                             resonator_freq_hz=7.0e9,
+                             readout_freq_hz=7.0e9,
                              num_levels=6, figsize=(4, 3),
                              ylim=[-10, 10]):
         """
@@ -574,7 +574,7 @@ class OCS:
             Offset charge values, default linspace(0, 1, 500)
         coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq_hz : float, optional
+        readout_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -596,11 +596,11 @@ class OCS:
         # Compute chi for both parities
         for i, n_g in enumerate(offset_charges):
             _, chi_odd = self.compute_dispersive_matrix(
-                n_g, coupling_g_hz, resonator_freq_hz, num_levels, 
+                n_g, coupling_g_hz, readout_freq_hz, num_levels, 
                 parity='odd'
             )
             _, chi_even = self.compute_dispersive_matrix(
-                n_g, coupling_g_hz, resonator_freq_hz, num_levels, 
+                n_g, coupling_g_hz, readout_freq_hz, num_levels, 
                 parity='even'
             )
             chi_vals_odd[i, :] = chi_odd
@@ -750,8 +750,8 @@ class OCS:
         anharmonicity = freq_02 - 2 * freq_10
         
         # Chi at resonator for qubit state readout (simple estimate)
-        if hasattr(self, '_resonator_freq_hz'):
-            f_r_use = self._resonator_freq_hz
+        if hasattr(self, '_readout_freq_hz'):
+            f_r_use = self._readout_freq_hz
         else:
             f_r_use = 7.0e9
         chi_resonator = (coupling_g_hz ** 2 * anharmonicity / 
@@ -767,7 +767,7 @@ class OCS:
     def plot_parity_shift_vs_ng(self, offset_charges=None, 
                                 coupling_g_hz=150e6, 
                                 num_levels=6,
-                                resonator_freqs=[7.0e9],
+                                readout_freqs=[7.0e9],
                                 figsize=(4, 3)):
         """
         Plot parity-dependent dispersive shift vs offset charge
@@ -783,7 +783,7 @@ class OCS:
             Coupling strength [Hz], default 150 MHz
         num_levels : int, optional
             Number of levels, default 6
-        resonator_freqs : array_like, optional
+        readout_freqs : array_like, optional
             Resonator frequencies [Hz] to plot, default [7.0e9]
         figsize : tuple, optional
             Figure size, default (4, 3)
@@ -801,9 +801,9 @@ class OCS:
                   self.PLANCK_EV_S)
         
         # Store chi_diff for each resonator frequency
-        chi_diffs = np.zeros((len(resonator_freqs), len(offset_charges)))
+        chi_diffs = np.zeros((len(readout_freqs), len(offset_charges)))
         
-        for idx, f_r in enumerate(resonator_freqs):
+        for idx, f_r in enumerate(readout_freqs):
             for i, n_g in enumerate(offset_charges):
                 # Chi for odd parity
                 _, chi_odd = self.compute_dispersive_matrix(
@@ -822,8 +822,8 @@ class OCS:
             cmap = cm.get_cmap('magma')
             
             # Plot curves for each resonator frequency
-            for idx, f_r in enumerate(resonator_freqs):
-                color = cmap(idx / max(len(resonator_freqs) - 1, 1))
+            for idx, f_r in enumerate(readout_freqs):
+                color = cmap(idx / max(len(readout_freqs) - 1, 1))
                 ax.semilogy(offset_charges, 
                            np.abs(chi_diffs[idx, :]) / 1e6, 
                            linewidth=2, color=color, 
@@ -854,7 +854,7 @@ class OCS:
         return fig, ax
     
     def plot_all(self, offset_charges=None, coupling_g_hz=150e6, 
-                resonator_freq_hz=7.0e9, num_levels=5):
+                readout_freq_hz=7.0e9, num_levels=5):
         """
         Generate all standard plots for OCS transmon analysis
         
@@ -870,7 +870,7 @@ class OCS:
             Offset charge values
         coupling_g_hz : float, optional
             Coupling strength [Hz], default 150 MHz
-        resonator_freq_hz : float, optional
+        readout_freq_hz : float, optional
             Resonator frequency [Hz], default 7 GHz
         num_levels : int, optional
             Number of levels, default 6
@@ -880,7 +880,7 @@ class OCS:
         figs : list
             List of figure handles
         """
-        self._resonator_freq_hz = resonator_freq_hz  # Store for later use
+        self._readout_freq_hz = readout_freq_hz  # Store for later use
         
         print("=" * 60)
         print(f"OCS Transmon Parameters:")
@@ -892,9 +892,9 @@ class OCS:
         print(f"Eⱼ/Eᴄ = {self.ej_ec_ratio:.2f}")
         print(f"Rₙ = {self.r_n_ohm / 1e3:.1f} kΩ")
         print(f"Δ = {self.delta_material / self.KB_EV_K * 1e3:.3f} mK·kᴮ")
-        print(f"Resonator frequency = {resonator_freq_hz / 1e9:.2f} GHz")
+        print(f"Resonator frequency = {readout_freq_hz / 1e9:.2f} GHz")
         print(f"Coupling g = {coupling_g_hz / 1e6:.1f} MHz")
-        print(f"FWHM = {resonator_freq_hz / 10000 / 1e6:.2f} MHz")
+        print(f"FWHM = {readout_freq_hz / 10000 / 1e6:.2f} MHz")
         print("=" * 60)
         
         figs = []
@@ -902,7 +902,7 @@ class OCS:
         # Figure 1: Energy levels
         print("\n[1/4] Plotting energy levels...")
         fig1, _ = self.plot_energy_levels(
-            offset_charges, num_levels, resonator_freq_hz, coupling_g_hz
+            offset_charges, num_levels, readout_freq_hz, coupling_g_hz
         )
         figs.append(fig1)
         fig1.show()
@@ -910,7 +910,7 @@ class OCS:
         # Figure 2: Matrix elements
         print("[2/4] Plotting matrix elements...")
         fig2, _ = self.plot_matrix_elements(
-            None, coupling_g_hz, resonator_freq_hz, num_levels
+            None, coupling_g_hz, readout_freq_hz, num_levels
         )
         figs.append(fig2)
         fig2.show()
@@ -918,7 +918,7 @@ class OCS:
         # Figure 3: Dispersive shift
         print("[3/4] Plotting dispersive shift...")
         fig3, _ = self.plot_dispersive_shift(
-            None, coupling_g_hz, resonator_freq_hz, num_levels
+            None, coupling_g_hz, readout_freq_hz, num_levels
         )
         figs.append(fig3)
         fig3.show()
@@ -953,7 +953,7 @@ def main():
     # Generate all plots
     figs = ocs.plot_all(
         coupling_g_hz=150e6,  # 150 MHz
-        resonator_freq_hz=7.0e9,  # 7 GHz
+        readout_freq_hz=7.0e9,  # 7 GHz
         num_levels=5
     )
     
