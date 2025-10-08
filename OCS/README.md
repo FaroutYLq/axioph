@@ -1,5 +1,7 @@
 # OCS Transmon Simulator
 
+**Note: the newer version of this software has been moved to https://github.com/WashU-Astroparticle-Lab/qpd**
+
 Python implementation for simulating **Offset-Charge-Sensitive (OCS) 
 Transmons**, based on the physics described in:
 
