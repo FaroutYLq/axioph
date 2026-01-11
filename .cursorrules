@@ -1,0 +1,11 @@
+# Cursor Rules for axioph Repository
+
+## Terminal Commands
+- Always activate the `straxion` conda environment before running any terminal commands:
+  ```bash
+  conda activate straxion
+  ```
+
+## Code Style
+- No line generated should go beyond 100 characters in length.
+
